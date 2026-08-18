@@ -73,6 +73,7 @@ Prepared:
 - Screenshot 1: `store/screenshots/01-overview-1280x800.png` — 1280×800.
 - Screenshot 2: `store/screenshots/02-research-group-1280x800.png` — 1280×800.
 - Screenshot 3: `store/screenshots/03-dev-group-1280x800.png` — 1280×800.
+- Screenshot 4: `store/screenshots/04-settings-hub-mode-1280x800.png` — 1280×800, showing hub mode enabled in Settings.
 - Small promo tile: `store/promo/small-tile-440x280.png` — 440×280.
 - Marquee promo tile: `store/promo/marquee-1400x560.png` — 1400×560.
 - Promo artwork is text-free and brand-first so it remains readable when reduced.
