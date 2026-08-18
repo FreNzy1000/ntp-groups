@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>New Tab</title>
-  <link rel="icon" type="image/svg+xml" href="icons/tab-scratches.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon32.png">
   <link rel="stylesheet" href="newtab.css">
 </head>
 <body>
@@ -41,7 +41,7 @@
           <span id="kindLabel">Тип</span>
           <select id="editorKind" hidden aria-hidden="true" tabindex="-1">
             <option value="site">Сайт</option>
-            <option value="folder">Группа</option>
+            <option value="folder">Папка</option>
           </select>
           <div id="kindSelect" class="location-select kind-select">
             <button id="kindButton" class="location-select-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="kindLabel kindValue">
@@ -87,8 +87,24 @@
       <input id="settingsButtonAlwaysVisible" type="checkbox" checked>
       <span>Показывать значок настроек постоянно</span>
     </label>
+    <label class="settings-toggle">
+      <input id="persistentHub" type="checkbox">
+      <span>Постоянный Hub</span>
+    </label>
+    <div class="settings-shortcut-row">
+      <span>Return to Hub</span>
+      <span id="hubShortcut" class="settings-shortcut">Alt+H</span>
+      <button id="editHubShortcut" class="settings-inline-action" type="button">Изменить</button>
+    </div>
+    <div class="settings-section-label">Данные</div>
+    <div class="settings-actions-row">
+      <button id="exportConfig" type="button">Экспорт</button>
+      <button id="importConfig" type="button">Импорт</button>
+    </div>
+    <button id="undoImport" type="button" hidden>Отменить последний импорт</button>
+    <input id="importConfigFile" type="file" accept="application/json,.json" hidden>
     <button id="resetLayout" type="button">Вернуть исходную структуру</button>
-    <div class="settings-note">Если значок скрыт, наведите курсор в правый нижний угол. Данные хранятся локально в расширении.</div>
+    <div class="settings-note">Hub сохраняет отдельную закреплённую домашнюю вкладку. Alt+H и значок расширения возвращают к ней, не меняя текущий сайт.</div>
   </div>
 
   <script src="newtab.js"></script>

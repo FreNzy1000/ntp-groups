@@ -99,6 +99,10 @@ button { color: inherit; }
 .tile.drop-target .tile-icon {
   box-shadow: 0 0 0 2px rgba(138,180,248,.72), 0 0 0 5px rgba(138,180,248,.10);
 }
+.tile.spring-target .tile-icon {
+  box-shadow: 0 0 0 2px rgba(138,180,248,.9), 0 0 0 7px rgba(138,180,248,.15);
+  transform: scale(1.055);
+}
 .folder-panel.drag-out-ready {
   box-shadow: var(--shadow), 0 0 0 1px rgba(138,180,248,.22);
 }
@@ -182,6 +186,22 @@ button { color: inherit; }
 .folder-mini img { width: 14px; height: 14px; object-fit: contain; z-index: 1; }
 .folder-mini .mini-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 9px; font-weight: 700; color: #e8eaed; }
 .folder-mini img:not([hidden]) + .mini-fallback { opacity: 0; }
+.folder-mini-folder {
+  display: grid;
+  grid-template-columns: repeat(2, 5px);
+  grid-template-rows: repeat(2, 5px);
+  gap: 2px;
+  padding: 3px;
+}
+.folder-mini-folder::before,
+.folder-mini-folder::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.58);
+  box-shadow: 7px 0 rgba(255,255,255,.34), 0 7px rgba(255,255,255,.34), 7px 7px rgba(138,180,248,.72);
+}
 
 .add-icon {
   width: 24px;
@@ -203,11 +223,39 @@ button { color: inherit; }
 }
 
 .folder-header {
-  height: 34px;
+  min-height: 34px;
   display: flex;
   align-items: center;
+  gap: 3px;
   padding: 0 2px 7px;
+  overflow: hidden;
 }
+.folder-breadcrumb {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 3px;
+  color: #9fa1a6;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.folder-breadcrumb-button {
+  max-width: 150px;
+  height: 25px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #9fa1a6;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.folder-breadcrumb-button:hover,
+.folder-breadcrumb-button.drag-target { background: rgba(255,255,255,.07); color: #e8eaed; }
+.folder-breadcrumb-separator { color: #66686d; }
 .folder-title {
   flex: 0 1 auto;
   field-sizing: content;
@@ -328,8 +376,34 @@ body.settings-on-hover .settings-hotzone:hover .settings-button:hover { opacity:
 .context-menu button:hover,
 .settings-popover button:hover { background: rgba(255,255,255,.08); }
 .context-menu .danger { color: #f28b82; }
-.settings-popover { right: 24px; bottom: 65px; width: 235px; }
+.settings-popover { right: 24px; bottom: 65px; width: 282px; }
 .settings-title { padding: 7px 10px 8px; color: #dfe1e5; font-size: 12.5px; font-weight: 600; }
+.settings-section-label { padding: 9px 10px 4px; color: #8f9196; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; }
+.settings-actions-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.settings-shortcut-row {
+  min-height: 36px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto auto;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  color: #e5e7ea;
+  font-size: 12px;
+}
+.settings-shortcut {
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.07);
+  color: #d7d9dd;
+  font-size: 11px;
+}
+.settings-popover .settings-inline-action {
+  width: auto;
+  height: 26px;
+  padding: 0 6px;
+  color: #a8c7fa;
+  font-size: 11px;
+}
 .settings-toggle {
   min-height: 38px;
   display: grid;
@@ -346,6 +420,7 @@ body.settings-on-hover .settings-hotzone:hover .settings-button:hover { opacity:
 .settings-toggle:hover { background: rgba(255,255,255,.06); }
 .settings-toggle input { margin: 0; width: 14px; height: 14px; accent-color: #8ab4f8; }
 .settings-note { padding: 7px 10px 4px; color: #85878c; font-size: 11px; line-height: 1.35; }
+.settings-popover > button[hidden] { display: none !important; }
 
 .modal-backdrop {
   position: fixed;

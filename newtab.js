@@ -2,19 +2,24 @@
   'use strict';
 
   const STORAGE_KEY = 'braveNtpGroupsConfig';
-  const SCHEMA_VERSION = 2;
+  const IMPORT_ROLLBACK_KEY = 'ntpGroupsImportRollback';
+  const SCHEMA_VERSION = 3;
+  const MAX_FOLDER_DEPTH = 2;
+  const SPRING_OPEN_MS = 750;
+  const SPRING_REARM_DISTANCE = 12;
 
   const DEFAULT_CONFIG = {
     version: SCHEMA_VERSION,
     preferences: {
       settingsButtonAlwaysVisible: true,
-      openSitesInNewTab: true
+      openSitesInNewTab: true,
+      persistentHub: false
     },
     root: [
       { kind: 'folder', id: 'personal', title: 'Personal', items: [] },
       { kind: 'folder', id: 'work', title: 'Work', items: [] },
       { kind: 'folder', id: 'social', title: 'Social', items: [] },
-      { kind: 'folder', id: 'school', title: 'School', items: [] }
+      { kind: 'folder', id: 'media', title: 'Media', items: [] }
     ]
   };
 
@@ -45,6 +50,13 @@
   const settingsPopover = document.getElementById('settingsPopover');
   const settingsButtonAlwaysVisible = document.getElementById('settingsButtonAlwaysVisible');
   const openSitesInNewTab = document.getElementById('openSitesInNewTab');
+  const persistentHub = document.getElementById('persistentHub');
+  const hubShortcut = document.getElementById('hubShortcut');
+  const editHubShortcut = document.getElementById('editHubShortcut');
+  const exportConfigButton = document.getElementById('exportConfig');
+  const importConfigButton = document.getElementById('importConfig');
+  const importConfigFile = document.getElementById('importConfigFile');
+  const undoImport = document.getElementById('undoImport');
   const resetLayout = document.getElementById('resetLayout');
 
   let config = structuredClone(DEFAULT_CONFIG);
@@ -52,53 +64,120 @@
   let editorState = null;
   let dragState = null;
   let groupHoverTimer = null;
+  let springHoverTimer = null;
   let selectedLocationId = '';
+  let isHubPage = false;
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
   }
 
-  async function storageGet() {
+  async function storageGetKey(key) {
     try {
       if (globalThis.chrome?.storage?.local) {
-        const result = await chrome.storage.local.get(STORAGE_KEY);
-        return result[STORAGE_KEY] || null;
+        const result = await chrome.storage.local.get(key);
+        return result[key] ?? null;
       }
     } catch (error) {
       console.warn('chrome.storage.local read failed', error);
     }
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      return JSON.parse(localStorage.getItem(key) || 'null');
     } catch {
       return null;
     }
   }
 
-  async function storageSet(value) {
+  async function storageSetKey(key, value) {
     try {
       if (globalThis.chrome?.storage?.local) {
-        await chrome.storage.local.set({ [STORAGE_KEY]: value });
+        await chrome.storage.local.set({ [key]: value });
         return;
       }
     } catch (error) {
       console.warn('chrome.storage.local write failed', error);
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  async function storageRemoveKey(key) {
+    try {
+      if (globalThis.chrome?.storage?.local) {
+        await chrome.storage.local.remove(key);
+        return;
+      }
+    } catch (error) {
+      console.warn('chrome.storage.local remove failed', error);
+    }
+    localStorage.removeItem(key);
+  }
+
+  const storageGet = () => storageGetKey(STORAGE_KEY);
+  const storageSet = value => storageSetKey(STORAGE_KEY, value);
+
+  function sanitizeStoredItems(items, containerDepth = 0) {
+    if (!Array.isArray(items)) return [];
+    const result = [];
+    for (const item of items) {
+      if (!item || typeof item !== 'object' || typeof item.id !== 'string' || typeof item.title !== 'string') continue;
+      if (item.kind === 'site' && typeof item.url === 'string') {
+        result.push({ kind: 'site', id: item.id, title: item.title, url: item.url });
+      } else if (item.kind === 'folder' && containerDepth < MAX_FOLDER_DEPTH) {
+        result.push({
+          kind: 'folder',
+          id: item.id,
+          title: item.title,
+          items: sanitizeStoredItems(item.items, containerDepth + 1)
+        });
+      }
+    }
+    return result;
   }
 
   function normalizeConfig(raw) {
-    const normalized = raw && raw.version === SCHEMA_VERSION && Array.isArray(raw.root)
-      ? clone(raw)
-      : clone(DEFAULT_CONFIG);
-    normalized.preferences = {
-      ...DEFAULT_CONFIG.preferences,
-      ...(normalized.preferences || {})
+    const compatible = raw
+      && (raw.version === 2 || raw.version === SCHEMA_VERSION)
+      && Array.isArray(raw.root);
+    if (!compatible) return clone(DEFAULT_CONFIG);
+    return {
+      version: SCHEMA_VERSION,
+      preferences: {
+        ...DEFAULT_CONFIG.preferences,
+        ...(raw.preferences || {})
+      },
+      root: sanitizeStoredItems(raw.root, 0)
     };
-    return normalized;
+  }
+
+  function locateItemIn(items, itemId, parentFolderId = null, ancestors = []) {
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index];
+      if (item.id === itemId) {
+        return {
+          item,
+          folderId: parentFolderId,
+          parentFolderId,
+          index,
+          container: items,
+          ancestors: [...ancestors],
+          containerDepth: ancestors.length
+        };
+      }
+      if (item.kind === 'folder') {
+        const nested = locateItemIn(item.items || [], itemId, item.id, [...ancestors, item]);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  }
+
+  function locateItem(itemId) {
+    return locateItemIn(config.root, itemId, null, []);
   }
 
   function getFolder(folderId) {
-    return config.root.find(item => item.kind === 'folder' && item.id === folderId) || null;
+    const found = locateItem(folderId);
+    return found?.item?.kind === 'folder' ? found.item : null;
   }
 
   function getContainer(folderId) {
@@ -107,14 +186,44 @@
     return folder ? folder.items : null;
   }
 
-  function locateItem(itemId) {
-    const rootIndex = config.root.findIndex(item => item.id === itemId);
-    if (rootIndex >= 0) return { item: config.root[rootIndex], folderId: null, index: rootIndex, container: config.root };
-    for (const folder of config.root.filter(item => item.kind === 'folder')) {
-      const index = folder.items.findIndex(item => item.id === itemId);
-      if (index >= 0) return { item: folder.items[index], folderId: folder.id, index, container: folder.items };
-    }
-    return null;
+  function getFolderPath(folderId) {
+    const found = locateItem(folderId);
+    if (!found || found.item.kind !== 'folder') return [];
+    return [...found.ancestors, found.item];
+  }
+
+  function getParentFolderId(folderId) {
+    const found = locateItem(folderId);
+    return found?.item?.kind === 'folder' ? found.parentFolderId : null;
+  }
+
+  function getFolderLevel(folderId) {
+    const path = getFolderPath(folderId);
+    return path.length;
+  }
+
+  function getFolderSubtreeHeight(folder) {
+    if (!folder || folder.kind !== 'folder') return 0;
+    const childFolders = (folder.items || []).filter(item => item.kind === 'folder');
+    if (!childFolders.length) return 1;
+    return 1 + Math.max(...childFolders.map(getFolderSubtreeHeight));
+  }
+
+  function canCreateFolderIn(folderId) {
+    return !folderId || getFolderLevel(folderId) < MAX_FOLDER_DEPTH;
+  }
+
+  function canMoveItemToFolder(itemId, targetFolderId) {
+    const source = locateItem(itemId);
+    if (!source) return false;
+    if (!targetFolderId) return true;
+    const target = locateItem(targetFolderId);
+    if (!target || target.item.kind !== 'folder') return false;
+    if (source.item.kind === 'site') return true;
+    if (source.item.id === targetFolderId) return false;
+    if (target.ancestors.some(folder => folder.id === source.item.id)) return false;
+    const targetLevel = getFolderLevel(targetFolderId);
+    return targetLevel + getFolderSubtreeHeight(source.item) <= MAX_FOLDER_DEPTH;
   }
 
   function uniqueId(prefix) {
@@ -178,7 +287,7 @@
 
   function openSite(site, newTab = false) {
     if (!site?.url) return;
-    if (newTab) {
+    if (newTab || isHubPage) {
       if (globalThis.chrome?.tabs?.create) {
         chrome.tabs.create({ url: site.url, active: true });
       } else {
@@ -233,7 +342,7 @@
     button.append(icon, label);
     button.addEventListener('click', event => {
       if (dragState) return;
-      const openInNewTab = event.ctrlKey || event.metaKey || config.preferences?.openSitesInNewTab !== false;
+      const openInNewTab = isHubPage || event.ctrlKey || event.metaKey || config.preferences?.openSitesInNewTab !== false;
       openSite(site, openInNewTab);
     });
     button.addEventListener('auxclick', event => {
@@ -247,13 +356,20 @@
     return button;
   }
 
-  function makeFolderTile(folder) {
+  function makeFolderPreviewMini(item) {
+    if (item?.kind === 'site') return createFavicon(item.url, item.title, 'folder-mini');
+    const mini = document.createElement('span');
+    mini.className = item?.kind === 'folder' ? 'folder-mini folder-mini-folder' : 'folder-mini';
+    return mini;
+  }
+
+  function makeFolderTile(folder, parentFolderId = null) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'tile folder-tile';
     button.draggable = true;
     button.dataset.itemId = folder.id;
-    button.dataset.folderId = '';
+    button.dataset.folderId = parentFolderId || '';
     button.title = folder.title;
 
     const icon = document.createElement('span');
@@ -261,12 +377,7 @@
     const preview = document.createElement('span');
     preview.className = 'folder-preview';
     const previewItems = folder.items.slice(0, 4);
-    for (let i = 0; i < 4; i++) {
-      const item = previewItems[i];
-      const mini = item ? createFavicon(item.url, item.title, 'folder-mini') : document.createElement('span');
-      if (!item) mini.className = 'folder-mini';
-      preview.append(mini);
-    }
+    for (let i = 0; i < 4; i++) preview.append(makeFolderPreviewMini(previewItems[i]));
     icon.append(preview);
 
     const label = document.createElement('span');
@@ -279,15 +390,16 @@
       openFolder(folder.id, true);
     });
     button.addEventListener('contextmenu', event => showContextMenu(event, folder.id));
-    attachDragHandlers(button, folder.id, null);
+    attachDragHandlers(button, folder.id, parentFolderId);
     return button;
   }
 
   function makeAddTile(folderId = null) {
+    const canAddFolder = canCreateFolderIn(folderId);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'tile add-tile';
-    button.title = folderId ? 'Добавить сайт' : 'Добавить сайт или группу';
+    button.title = canAddFolder ? 'Добавить сайт или папку' : 'Добавить сайт';
     const icon = document.createElement('span');
     icon.className = 'tile-icon';
     const plus = makeSvgIcon('M12 5v14M5 12h14', 'add-icon');
@@ -296,7 +408,7 @@
     label.className = 'tile-label';
     label.textContent = 'Добавить…';
     button.append(icon, label);
-    button.addEventListener('click', () => openEditor({ mode: 'add', folderId }));
+    button.addEventListener('click', () => openEditor({ mode: 'add', folderId, forceSite: !canAddFolder }));
     return button;
   }
 
@@ -305,11 +417,28 @@
     strip.className = 'tile-strip';
     strip.dataset.containerId = '';
     for (const item of config.root) {
-      strip.append(item.kind === 'folder' ? makeFolderTile(item) : makeSiteTile(item, null));
+      strip.append(item.kind === 'folder' ? makeFolderTile(item, null) : makeSiteTile(item, null));
     }
     strip.append(makeAddTile(null));
     attachContainerDropHandlers(strip, null);
     launcherView.replaceChildren(strip);
+  }
+
+  function makeBreadcrumbButton(label, targetFolderId) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'folder-breadcrumb-button';
+    button.textContent = label;
+    button.addEventListener('click', () => {
+      if (dragState) return;
+      if (targetFolderId) openFolder(targetFolderId, true);
+      else transition(() => {
+        activeFolderId = null;
+        history.pushState(null, '', location.pathname);
+      });
+    });
+    attachBreadcrumbDropHandlers(button, targetFolderId);
+    return button;
   }
 
   function renderFolder(folder) {
@@ -319,13 +448,28 @@
 
     const header = document.createElement('header');
     header.className = 'folder-header';
+    const path = getFolderPath(folder.id);
+    const breadcrumb = document.createElement('nav');
+    breadcrumb.className = 'folder-breadcrumb';
+    breadcrumb.setAttribute('aria-label', 'Путь к папке');
+    breadcrumb.append(makeBreadcrumbButton('Root', null));
+    for (const ancestor of path.slice(0, -1)) {
+      const separator = document.createElement('span');
+      separator.className = 'folder-breadcrumb-separator';
+      separator.textContent = '/';
+      breadcrumb.append(separator, makeBreadcrumbButton(ancestor.title, ancestor.id));
+    }
+    const currentSeparator = document.createElement('span');
+    currentSeparator.className = 'folder-breadcrumb-separator';
+    currentSeparator.textContent = '/';
+    breadcrumb.append(currentSeparator);
 
     const title = document.createElement('input');
     title.type = 'text';
     title.className = 'folder-title';
     title.value = folder.title;
     title.maxLength = 28;
-    title.setAttribute('aria-label', 'Название группы');
+    title.setAttribute('aria-label', 'Название папки');
     title.addEventListener('keydown', event => {
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -349,12 +493,14 @@
       await storageSet(config);
     });
 
-    header.append(title);
+    header.append(breadcrumb, title);
 
     const grid = document.createElement('div');
     grid.className = 'folder-grid';
     grid.dataset.containerId = folder.id;
-    for (const site of folder.items) grid.append(makeSiteTile(site, folder.id));
+    for (const item of folder.items) {
+      grid.append(item.kind === 'folder' ? makeFolderTile(item, folder.id) : makeSiteTile(item, folder.id));
+    }
     grid.append(makeAddTile(folder.id));
     attachContainerDropHandlers(grid, folder.id);
 
@@ -393,11 +539,9 @@
     }
     if (dragState) {
       dragState.groupCandidateId = null;
-      dragState.groupCandidateAction = null;
       dragState.groupTargetId = null;
-      dragState.groupTargetAction = null;
     }
-    document.querySelectorAll('.group-create-target,.drop-target').forEach(node => node.classList.remove('group-create-target', 'drop-target'));
+    document.querySelectorAll('.group-create-target').forEach(node => node.classList.remove('group-create-target'));
   }
 
   function clearRootOutsideDrop() {
@@ -499,43 +643,90 @@
     return true;
   }
 
-  function armGroupHover(element, targetId, action) {
+  function clearSpringHover() {
+    if (springHoverTimer) {
+      clearTimeout(springHoverTimer);
+      springHoverTimer = null;
+    }
+    if (dragState) dragState.springCandidateId = null;
+    document.querySelectorAll('.spring-target').forEach(node => node.classList.remove('spring-target'));
+  }
+
+  function springRearmed(clientX, clientY) {
+    if (!dragState?.springLocked) return true;
+    const distance = Math.hypot(clientX - dragState.springLockX, clientY - dragState.springLockY);
+    if (distance < SPRING_REARM_DISTANCE) return false;
+    dragState.springLocked = false;
+    return true;
+  }
+
+  function openFolderDuringDrag(folderId, clientX, clientY) {
     if (!dragState) return;
-    const sameCandidate = dragState.groupCandidateId === targetId && dragState.groupCandidateAction === action;
-    const sameTarget = dragState.groupTargetId === targetId && dragState.groupTargetAction === action;
-    if (sameCandidate || sameTarget) return;
+    const folder = getFolder(folderId);
+    if (!folder) return;
+    clearGroupHover();
+    clearSpringHover();
+    clearRootOutsideDrop();
+    clearFolderSpatialDrop();
+    dragState.springLocked = true;
+    dragState.springLockX = clientX;
+    dragState.springLockY = clientY;
+    activeFolderId = folderId;
+    history.pushState({ folderId }, '', `#folder=${encodeURIComponent(folderId)}`);
+    renderView();
+  }
+
+  function armSpringOpen(element, targetId, clientX, clientY) {
+    if (!dragState) return;
+    dragState.lastX = clientX;
+    dragState.lastY = clientY;
+    if (!springRearmed(clientX, clientY)) return;
+    if (dragState.springCandidateId === targetId) return;
+    clearSpringHover();
+    if (!dragState) return;
+    dragState.springCandidateId = targetId;
+    element.classList.add('spring-target');
+    springHoverTimer = setTimeout(() => {
+      if (!dragState || dragState.springCandidateId !== targetId) return;
+      springHoverTimer = null;
+      openFolderDuringDrag(targetId, dragState.lastX, dragState.lastY);
+    }, SPRING_OPEN_MS);
+  }
+
+  function armGroupHover(element, targetId) {
+    if (!dragState) return;
+    if (dragState.groupCandidateId === targetId || dragState.groupTargetId === targetId) return;
     clearGroupHover();
     if (!dragState) return;
     dragState.groupCandidateId = targetId;
-    dragState.groupCandidateAction = action;
     groupHoverTimer = setTimeout(() => {
-      if (!dragState || dragState.groupCandidateId !== targetId || dragState.groupCandidateAction !== action) return;
+      if (!dragState || dragState.groupCandidateId !== targetId) return;
       dragState.groupTargetId = targetId;
-      dragState.groupTargetAction = action;
       groupHoverTimer = null;
-      element.classList.add(action === 'create' ? 'group-create-target' : 'drop-target');
+      element.classList.add('group-create-target');
     }, 280);
   }
 
   function createGroupFromSites(sourceId, targetId) {
     const source = locateItem(sourceId);
     const target = locateItem(targetId);
-    if (!source || !target) return false;
-    if (source.folderId || target.folderId) return false;
+    if (!source || !target || source.folderId !== target.folderId) return false;
+    if (!canCreateFolderIn(source.folderId)) return false;
     if (source.item.kind !== 'site' || target.item.kind !== 'site' || sourceId === targetId) return false;
 
     const sourceItem = source.item;
     const targetItem = target.item;
+    const parentFolderId = source.folderId;
     source.container.splice(source.index, 1);
 
     const refreshedTarget = locateItem(targetId);
-    if (!refreshedTarget || refreshedTarget.folderId || refreshedTarget.item.kind !== 'site') return false;
+    if (!refreshedTarget || refreshedTarget.folderId !== parentFolderId || refreshedTarget.item.kind !== 'site') return false;
     const insertIndex = refreshedTarget.index;
     refreshedTarget.container.splice(insertIndex, 1);
     refreshedTarget.container.splice(insertIndex, 0, {
       kind: 'folder',
       id: uniqueId('folder'),
-      title: 'Группа',
+      title: 'Папка',
       items: [targetItem, sourceItem]
     });
     return true;
@@ -544,13 +735,20 @@
   function attachDragHandlers(element, itemId, folderId) {
     element.addEventListener('dragstart', event => {
       clearGroupHover();
+      clearSpringHover();
       dragState = {
         itemId,
         folderId: folderId || null,
+        sourceElement: element,
         groupCandidateId: null,
-        groupCandidateAction: null,
         groupTargetId: null,
-        groupTargetAction: null,
+        enterTargetId: null,
+        springCandidateId: null,
+        springLocked: false,
+        springLockX: 0,
+        springLockY: 0,
+        lastX: event.clientX,
+        lastY: event.clientY,
         rootEdgeDrop: null,
         rootVerticalDrop: null,
         folderSpatialDrop: null
@@ -560,87 +758,102 @@
       event.dataTransfer.setData('text/plain', itemId);
     });
     element.addEventListener('dragend', () => {
-      element.classList.remove('dragging');
+      dragState?.sourceElement?.classList.remove('dragging');
       clearGroupHover();
+      clearSpringHover();
       clearRootOutsideDrop();
       clearFolderSpatialDrop();
-      document.querySelectorAll('.drop-before,.drop-after,.drop-target').forEach(node => node.classList.remove('drop-before', 'drop-after', 'drop-target'));
+      document.querySelectorAll('.drop-before,.drop-after,.drop-target,.drag-target').forEach(node => node.classList.remove('drop-before', 'drop-after', 'drop-target', 'drag-target'));
       setTimeout(() => { dragState = null; }, 0);
     });
     element.addEventListener('dragover', event => {
       if (!dragState || dragState.itemId === itemId) return;
+      dragState.lastX = event.clientX;
+      dragState.lastY = event.clientY;
       const source = locateItem(dragState.itemId);
       const target = locateItem(itemId);
       if (!source || !target) return;
 
-      const sameContainer = source.folderId === target.folderId;
       clearRootOutsideDrop();
       clearFolderSpatialDrop();
+      dragState.enterTargetId = null;
+      const sameContainer = source.folderId === target.folderId;
       const rect = element.getBoundingClientRect();
       const position = (event.clientX - rect.left) / Math.max(rect.width, 1);
       const inCenterZone = position >= 0.28 && position <= 0.72;
       const canCreateGroup = sameContainer
-        && source.folderId === null
         && source.item.kind === 'site'
-        && target.item.kind === 'site';
-      const canEnterFolder = sameContainer
-        && source.folderId === null
-        && source.item.kind === 'site'
-        && target.item.kind === 'folder';
+        && target.item.kind === 'site'
+        && canCreateFolderIn(source.folderId);
+      const canEnterFolder = target.item.kind === 'folder'
+        && canMoveItemToFolder(source.item.id, target.item.id);
 
-      if (inCenterZone && (canCreateGroup || canEnterFolder)) {
+      if (inCenterZone && canEnterFolder) {
         event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
         element.classList.remove('drop-before', 'drop-after');
-        armGroupHover(element, itemId, canCreateGroup ? 'create' : 'enter');
+        element.classList.add('drop-target');
+        dragState.enterTargetId = itemId;
+        if (dragState.groupCandidateId === itemId || dragState.groupTargetId === itemId) clearGroupHover();
+        armSpringOpen(element, itemId, event.clientX, event.clientY);
         return;
       }
 
-      if (!sameContainer) return;
-      event.preventDefault();
+      if (inCenterZone && canCreateGroup) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        clearSpringHover();
+        element.classList.remove('drop-before', 'drop-after');
+        armGroupHover(element, itemId);
+        return;
+      }
+
+      clearSpringHover();
       if (dragState.groupCandidateId === itemId || dragState.groupTargetId === itemId) clearGroupHover();
+      if (!canMoveItemToFolder(source.item.id, target.folderId)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
       const before = position < 0.5;
       element.classList.toggle('drop-before', before);
       element.classList.toggle('drop-after', !before);
     });
     element.addEventListener('dragleave', event => {
       if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget)) return;
-      element.classList.remove('drop-before', 'drop-after');
+      element.classList.remove('drop-before', 'drop-after', 'drop-target', 'spring-target');
+      if (dragState?.enterTargetId === itemId) dragState.enterTargetId = null;
       if (dragState?.groupCandidateId === itemId || dragState?.groupTargetId === itemId) clearGroupHover();
+      if (dragState?.springCandidateId === itemId) clearSpringHover();
     });
     element.addEventListener('drop', async event => {
       if (!dragState || dragState.itemId === itemId) return;
-      const source = locateItem(dragState.itemId);
+      const sourceId = dragState.itemId;
+      const source = locateItem(sourceId);
       const target = locateItem(itemId);
       if (!source || !target) return;
 
-      const sourceId = dragState.itemId;
-      const armedAction = dragState.groupTargetId === itemId ? dragState.groupTargetAction : null;
-      const sameContainer = source.folderId === target.folderId;
-      const createGroup = armedAction === 'create'
-        && sameContainer
-        && source.folderId === null
+      const createGroup = dragState.groupTargetId === itemId
+        && source.folderId === target.folderId
         && source.item.kind === 'site'
-        && target.item.kind === 'site';
-      const enterFolder = armedAction === 'enter'
-        && sameContainer
-        && source.folderId === null
-        && source.item.kind === 'site'
-        && target.item.kind === 'folder';
+        && target.item.kind === 'site'
+        && canCreateFolderIn(source.folderId);
+      const enterFolder = dragState.enterTargetId === itemId
+        && target.item.kind === 'folder'
+        && canMoveItemToFolder(sourceId, target.item.id);
+      const canPlaceBeside = canMoveItemToFolder(sourceId, target.folderId);
+      if (!createGroup && !enterFolder && !canPlaceBeside) return;
 
-      if (!createGroup && !enterFolder && !sameContainer) return;
       event.preventDefault();
       event.stopPropagation();
-
       if (createGroup) {
         createGroupFromSites(sourceId, itemId);
       } else if (enterFolder) {
         moveItem(sourceId, target.item.id, null);
       } else {
         const rect = element.getBoundingClientRect();
-        const before = event.clientX < rect.left + rect.width / 2;
-        reorderItem(sourceId, itemId, before);
+        moveItemRelative(sourceId, itemId, event.clientX < rect.left + rect.width / 2);
       }
       clearGroupHover();
+      clearSpringHover();
       clearRootOutsideDrop();
       dragState = null;
       await persistAndRender();
@@ -651,18 +864,46 @@
     container.addEventListener('dragover', event => {
       if (!dragState) return;
       const source = locateItem(dragState.itemId);
-      if (!source || source.item.kind !== 'site') return;
+      if (!source) return;
       if ((source.folderId || null) === (folderId || null)) return;
+      if (!canMoveItemToFolder(source.item.id, folderId || null)) return;
       event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
     });
     container.addEventListener('drop', async event => {
       if (!dragState) return;
-      if (event.target.closest('.tile')) return;
+      if (event.target.closest('.tile,.folder-breadcrumb-button')) return;
       const source = locateItem(dragState.itemId);
-      if (!source || source.item.kind !== 'site') return;
+      if (!source) return;
       if ((source.folderId || null) === (folderId || null)) return;
+      if (!canMoveItemToFolder(source.item.id, folderId || null)) return;
       event.preventDefault();
+      event.stopPropagation();
       moveItem(dragState.itemId, folderId || null, null);
+      clearGroupHover();
+      clearSpringHover();
+      dragState = null;
+      await persistAndRender();
+    });
+  }
+
+  function attachBreadcrumbDropHandlers(button, targetFolderId) {
+    button.addEventListener('dragover', event => {
+      if (!dragState || !canMoveItemToFolder(dragState.itemId, targetFolderId)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      button.classList.add('drag-target');
+    });
+    button.addEventListener('dragleave', () => button.classList.remove('drag-target'));
+    button.addEventListener('drop', async event => {
+      if (!dragState || !canMoveItemToFolder(dragState.itemId, targetFolderId)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const itemId = dragState.itemId;
+      button.classList.remove('drag-target');
+      moveItem(itemId, targetFolderId, null);
+      clearGroupHover();
+      clearSpringHover();
       dragState = null;
       await persistAndRender();
     });
@@ -671,24 +912,42 @@
   function reorderItem(sourceId, targetId, before) {
     const source = locateItem(sourceId);
     const target = locateItem(targetId);
-    if (!source || !target || source.folderId !== target.folderId) return;
+    if (!source || !target || source.folderId !== target.folderId) return false;
     source.container.splice(source.index, 1);
     let targetIndex = source.container.findIndex(item => item.id === targetId);
+    if (targetIndex < 0) return false;
     if (!before) targetIndex += 1;
     source.container.splice(targetIndex, 0, source.item);
+    return true;
+  }
+
+  function moveItemRelative(sourceId, targetId, before) {
+    const source = locateItem(sourceId);
+    const target = locateItem(targetId);
+    if (!source || !target) return false;
+    if (source.folderId === target.folderId) return reorderItem(sourceId, targetId, before);
+    if (!canMoveItemToFolder(sourceId, target.folderId)) return false;
+    const item = source.item;
+    source.container.splice(source.index, 1);
+    const refreshedTarget = locateItem(targetId);
+    if (!refreshedTarget) return false;
+    let index = refreshedTarget.index + (before ? 0 : 1);
+    refreshedTarget.container.splice(index, 0, item);
+    return true;
   }
 
   function moveItem(itemId, targetFolderId, beforeId = null) {
     const source = locateItem(itemId);
-    if (!source || source.item.kind !== 'site') return false;
+    if (!source || !canMoveItemToFolder(itemId, targetFolderId)) return false;
     const targetContainer = getContainer(targetFolderId);
     if (!targetContainer) return false;
+    const item = source.item;
     source.container.splice(source.index, 1);
     if (beforeId) {
-      const index = targetContainer.findIndex(item => item.id === beforeId);
-      targetContainer.splice(index < 0 ? targetContainer.length : index, 0, source.item);
+      const index = targetContainer.findIndex(entry => entry.id === beforeId);
+      targetContainer.splice(index < 0 ? targetContainer.length : index, 0, item);
     } else {
-      targetContainer.push(source.item);
+      targetContainer.push(item);
     }
     return true;
   }
@@ -709,14 +968,15 @@
       addContextAction('Открыть в новой вкладке', () => openSite(found.item, true));
       addContextAction('Изменить…', () => openEditor({ mode: 'edit', itemId }));
     } else {
-      addContextAction('Открыть группу', () => openFolder(found.item.id, true));
+      addContextAction('Открыть папку', () => openFolder(found.item.id, true));
       addContextAction('Переименовать…', () => openEditor({ mode: 'edit', itemId }));
     }
     addContextAction('Удалить', async () => {
       const latest = locateItem(itemId);
       if (!latest) return;
       if (latest.item.kind === 'folder' && latest.item.items.length > 0) {
-        const accepted = confirm(`Удалить группу «${latest.item.title}» и ${latest.item.items.length} сайтов внутри?`);
+        const stats = countTree(latest.item.items);
+        const accepted = confirm(`Удалить папку «${latest.item.title}»? Внутри: сайтов ${stats.sites}, папок ${stats.folders}.`);
         if (!accepted) return;
       }
       latest.container.splice(latest.index, 1);
@@ -754,7 +1014,7 @@
 
   const KIND_OPTIONS = [
     { value: 'site', label: 'Сайт' },
-    { value: 'folder', label: 'Группа' }
+    { value: 'folder', label: 'Папка' }
   ];
 
   function setKindValue(value) {
@@ -841,11 +1101,22 @@
     queueMicrotask(() => selected?.focus({ preventScroll: true }));
   }
 
+  function getFolderLocationOptions(items = config.root, prefix = []) {
+    const options = [];
+    for (const item of items) {
+      if (item.kind !== 'folder') continue;
+      const path = [...prefix, item.title];
+      options.push({ value: item.id, label: path.join(' / ') });
+      options.push(...getFolderLocationOptions(item.items || [], path));
+    }
+    return options;
+  }
+
   function populateLocationSelect(selectedFolderId) {
     locationMenu.replaceChildren();
     const options = [
       { value: '', label: 'Корень' },
-      ...config.root.filter(item => item.kind === 'folder').map(folder => ({ value: folder.id, label: folder.title }))
+      ...getFolderLocationOptions()
     ];
     for (const entry of options) {
       const option = document.createElement('button');
@@ -885,9 +1156,9 @@
     const editFound = options.itemId ? locateItem(options.itemId) : null;
     const isEdit = options.mode === 'edit' && editFound;
     const editingFolder = isEdit && editFound.item.kind === 'folder';
-    const forceSite = options.forceSite || Boolean(options.folderId);
+    const forceSite = options.forceSite === true || (!isEdit && Boolean(options.folderId) && !canCreateFolderIn(options.folderId));
 
-    modalTitle.textContent = isEdit ? (editingFolder ? 'Изменить группу' : 'Изменить сайт') : (forceSite ? 'Добавить сайт' : 'Добавить');
+    modalTitle.textContent = isEdit ? (editingFolder ? 'Изменить папку' : 'Изменить сайт') : (forceSite ? 'Добавить сайт' : 'Добавить');
     kindRow.hidden = isEdit || forceSite;
     setKindValue(editingFolder ? 'folder' : 'site');
     editorTitle.value = isEdit ? editFound.item.title : '';
@@ -966,7 +1237,11 @@
         if ((found.folderId || null) !== targetFolderId) moveItem(found.item.id, targetFolderId, null);
       }
     } else if (kind === 'folder') {
-      config.root.push({ kind: 'folder', id: uniqueId('folder'), title, items: [] });
+      const targetFolderId = editorState.folderId || null;
+      if (!canCreateFolderIn(targetFolderId)) return;
+      const container = getContainer(targetFolderId);
+      if (!container) return;
+      container.push({ kind: 'folder', id: uniqueId('folder'), title, items: [] });
     } else {
       const targetFolderId = editorState.folderId || selectedLocationId || null;
       const container = getContainer(targetFolderId);
@@ -989,8 +1264,8 @@
       return;
     }
     try {
-      resetToRoot({ render: false });
-      await chrome.search.query({ text, disposition: 'CURRENT_TAB' });
+      if (!isHubPage) resetToRoot({ render: false });
+      await chrome.search.query({ text, disposition: isHubPage ? 'NEW_TAB' : 'CURRENT_TAB' });
     } catch (error) {
       console.warn('Default-provider search failed', error);
       searchInput.setCustomValidity('Не удалось выполнить поиск через текущий провайдер.');
@@ -999,11 +1274,174 @@
     }
   });
 
+  function countTree(items, containerDepth = 0) {
+    const stats = { sites: 0, folders: 0, maxDepth: 0 };
+    for (const item of Array.isArray(items) ? items : []) {
+      if (item.kind === 'site') {
+        stats.sites += 1;
+        continue;
+      }
+      if (item.kind !== 'folder') continue;
+      stats.folders += 1;
+      stats.maxDepth = Math.max(stats.maxDepth, containerDepth + 1);
+      const childStats = countTree(item.items, containerDepth + 1);
+      stats.sites += childStats.sites;
+      stats.folders += childStats.folders;
+      stats.maxDepth = Math.max(stats.maxDepth, childStats.maxDepth);
+    }
+    return stats;
+  }
+
+  function validateImportConfig(candidate) {
+    if (!candidate || typeof candidate !== 'object' || !Array.isArray(candidate.root)) {
+      throw new Error('В файле нет структуры NTP Groups.');
+    }
+    const seenIds = new Set();
+    const validateItems = (items, containerDepth) => {
+      if (!Array.isArray(items)) throw new Error('Некорректный список элементов.');
+      return items.map(item => {
+        if (!item || typeof item !== 'object') throw new Error('Некорректный элемент структуры.');
+        if (typeof item.id !== 'string' || !item.id.trim() || seenIds.has(item.id)) throw new Error('Некорректный или повторяющийся ID.');
+        seenIds.add(item.id);
+        if (typeof item.title !== 'string' || !item.title.trim()) throw new Error('У элемента отсутствует название.');
+        if (item.kind === 'site') {
+          if (typeof item.url !== 'string') throw new Error(`У сайта «${item.title}» отсутствует URL.`);
+          try { new URL(item.url); } catch { throw new Error(`Некорректный URL у сайта «${item.title}».`); }
+          return { kind: 'site', id: item.id, title: item.title, url: item.url };
+        }
+        if (item.kind === 'folder') {
+          if (containerDepth >= MAX_FOLDER_DEPTH) throw new Error(`Папка «${item.title}» находится глубже допустимого уровня.`);
+          return { kind: 'folder', id: item.id, title: item.title, items: validateItems(item.items, containerDepth + 1) };
+        }
+        throw new Error(`Неизвестный тип элемента «${item.title}».`);
+      });
+    };
+
+    const normalized = {
+      version: SCHEMA_VERSION,
+      preferences: {
+        ...DEFAULT_CONFIG.preferences,
+        ...(candidate.preferences && typeof candidate.preferences === 'object' ? candidate.preferences : {})
+      },
+      root: validateItems(candidate.root, 0)
+    };
+    return { config: normalized, stats: countTree(normalized.root) };
+  }
+
+  function parseImportPayload(text) {
+    let payload;
+    try { payload = JSON.parse(text); } catch { throw new Error('Файл не является корректным JSON.'); }
+    const candidate = payload?.format === 'ntp-groups-backup' ? payload.config : payload;
+    return validateImportConfig(candidate);
+  }
+
+  async function refreshUndoImportAvailability() {
+    const rollback = await storageGetKey(IMPORT_ROLLBACK_KEY);
+    undoImport.hidden = !rollback?.config;
+  }
+
+  function exportConfiguration() {
+    const payload = {
+      format: 'ntp-groups-backup',
+      formatVersion: 1,
+      exportedAt: new Date().toISOString(),
+      extensionVersion: globalThis.chrome?.runtime?.getManifest?.().version || null,
+      config: clone(config)
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    anchor.href = url;
+    anchor.download = `NTP-Groups-backup-${date}.json`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function importConfigurationFile(file) {
+    if (!file) return;
+    let imported;
+    try {
+      imported = parseImportPayload(await file.text());
+    } catch (error) {
+      alert(error?.message || 'Не удалось прочитать конфигурацию.');
+      return;
+    }
+    const accepted = confirm([
+      'Импортировать конфигурацию NTP Groups?',
+      '',
+      `Сайтов: ${imported.stats.sites}`,
+      `Папок: ${imported.stats.folders}`,
+      `Глубина папок: ${imported.stats.maxDepth}`,
+      '',
+      'Текущая конфигурация будет сохранена для одного шага отмены.'
+    ].join('\n'));
+    if (!accepted) return;
+
+    await storageSetKey(IMPORT_ROLLBACK_KEY, { savedAt: new Date().toISOString(), config: clone(config) });
+    config = imported.config;
+    activeFolderId = null;
+    history.replaceState(null, '', location.pathname);
+    applyPreferences();
+    await storageSet(config);
+    renderView();
+    await refreshUndoImportAvailability();
+    await refreshPageContext();
+  }
+
+  async function undoLastImport() {
+    const rollback = await storageGetKey(IMPORT_ROLLBACK_KEY);
+    if (!rollback?.config) return;
+    const restored = validateImportConfig(rollback.config).config;
+    config = restored;
+    activeFolderId = null;
+    history.replaceState(null, '', location.pathname);
+    applyPreferences();
+    await storageSet(config);
+    await storageRemoveKey(IMPORT_ROLLBACK_KEY);
+    renderView();
+    await refreshUndoImportAvailability();
+    await refreshPageContext();
+  }
+
+  async function refreshPageContext() {
+    if (!globalThis.chrome?.runtime?.sendMessage) {
+      isHubPage = false;
+      return;
+    }
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'ntp-groups-page-context' });
+      isHubPage = response?.isHub === true;
+      if (typeof response?.persistentHubEnabled === 'boolean') {
+        config.preferences.persistentHub = response.persistentHubEnabled;
+        persistentHub.checked = response.persistentHubEnabled;
+      }
+      document.body.classList.toggle('hub-page', isHubPage);
+    } catch {
+      isHubPage = false;
+      document.body.classList.remove('hub-page');
+    }
+  }
+
+  async function refreshShortcutStatus() {
+    if (!globalThis.chrome?.commands?.getAll) return;
+    try {
+      const commands = await chrome.commands.getAll();
+      const command = commands.find(entry => entry.name === 'return-to-hub');
+      hubShortcut.textContent = command?.shortcut || 'Не назначен';
+    } catch {
+      hubShortcut.textContent = 'Не назначен';
+    }
+  }
+
   function applyPreferences() {
     const alwaysVisible = config.preferences?.settingsButtonAlwaysVisible !== false;
     document.body.classList.toggle('settings-on-hover', !alwaysVisible);
     settingsButtonAlwaysVisible.checked = alwaysVisible;
     openSitesInNewTab.checked = config.preferences?.openSitesInNewTab !== false;
+    persistentHub.checked = config.preferences?.persistentHub === true;
   }
 
   function setSettingsPopover(open) {
@@ -1013,7 +1451,12 @@
 
   settingsButton.addEventListener('click', event => {
     event.stopPropagation();
-    setSettingsPopover(settingsPopover.hidden);
+    const opening = settingsPopover.hidden;
+    setSettingsPopover(opening);
+    if (opening) {
+      void refreshShortcutStatus();
+      void refreshUndoImportAvailability();
+    }
   });
 
   settingsButtonAlwaysVisible.addEventListener('change', async () => {
@@ -1025,6 +1468,39 @@
   openSitesInNewTab.addEventListener('change', async () => {
     config.preferences.openSitesInNewTab = openSitesInNewTab.checked;
     await storageSet(config);
+  });
+
+  persistentHub.addEventListener('change', async () => {
+    config.preferences.persistentHub = persistentHub.checked;
+    await storageSet(config);
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'ntp-groups-persistent-hub-changed' });
+      isHubPage = response?.isHub === true;
+      document.body.classList.toggle('hub-page', isHubPage);
+    } catch (error) {
+      console.warn('Persistent Hub update failed', error);
+      await refreshPageContext();
+    }
+  });
+
+  exportConfigButton.addEventListener('click', exportConfiguration);
+  importConfigButton.addEventListener('click', () => importConfigFile.click());
+  importConfigFile.addEventListener('change', async () => {
+    const file = importConfigFile.files?.[0] || null;
+    importConfigFile.value = '';
+    await importConfigurationFile(file);
+  });
+  undoImport.addEventListener('click', async () => {
+    if (!confirm('Вернуть конфигурацию, которая была до последнего импорта?')) return;
+    await undoLastImport();
+  });
+  editHubShortcut.addEventListener('click', async () => {
+    try {
+      await chrome.tabs.create({ url: 'chrome://extensions/shortcuts', active: true });
+    } catch (error) {
+      console.warn('Shortcut settings page could not be opened', error);
+      alert('Откройте страницу управления сочетаниями клавиш расширений в настройках браузера.');
+    }
   });
 
   resetLayout.addEventListener('click', async () => {
@@ -1097,24 +1573,35 @@
     const source = locateItem(dragState.itemId);
     const panel = launcherView.querySelector('.folder-panel');
     const grid = launcherView.querySelector('.folder-grid');
-    if (!source || source.item.kind !== 'site' || source.folderId !== activeFolderId || !panel || !grid) return;
+    if (!source || !panel || !grid) return;
+
+    // When a spring-open has moved the view but the dragged item still belongs
+    // to the parent container, tile/grid handlers inside the new folder own the drop.
+    if (source.folderId !== activeFolderId) {
+      panel.classList.remove('drag-out-ready');
+      clearFolderSpatialDrop();
+      return;
+    }
 
     const panelRect = panel.getBoundingClientRect();
     const outsidePanel = event.clientX < panelRect.left
       || event.clientX > panelRect.right
       || event.clientY < panelRect.top
       || event.clientY > panelRect.bottom;
-    panel.classList.toggle('drag-out-ready', outsidePanel);
+    const parentFolderId = getParentFolderId(activeFolderId);
+    const canMoveUp = canMoveItemToFolder(source.item.id, parentFolderId);
+    panel.classList.toggle('drag-out-ready', outsidePanel && canMoveUp);
 
-    if (outsidePanel) {
+    if (outsidePanel && canMoveUp) {
       clearFolderSpatialDrop();
+      clearSpringHover();
       event.preventDefault();
       event.dataTransfer.dropEffect = 'move';
       return;
     }
 
     panel.classList.remove('drag-out-ready');
-    if (event.target instanceof Element && event.target.closest('.tile')) {
+    if (event.target instanceof Element && event.target.closest('.tile,.folder-breadcrumb-button')) {
       clearFolderSpatialDrop();
       return;
     }
@@ -1126,6 +1613,7 @@
     }
 
     clearFolderSpatialDrop();
+    clearSpringHover();
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     dragState.folderSpatialDrop = { targetId: placement.targetId, before: placement.before };
@@ -1157,7 +1645,7 @@
 
     const source = locateItem(dragState.itemId);
     const panel = launcherView.querySelector('.folder-panel');
-    if (!source || source.item.kind !== 'site' || source.folderId !== activeFolderId || !panel) return;
+    if (!source || source.folderId !== activeFolderId || !panel) return;
 
     const panelRect = panel.getBoundingClientRect();
     const outsidePanel = event.clientX < panelRect.left
@@ -1165,16 +1653,19 @@
       || event.clientY < panelRect.top
       || event.clientY > panelRect.bottom;
     const spatial = dragState.folderSpatialDrop;
+    const parentFolderId = getParentFolderId(activeFolderId);
+    const canMoveUp = outsidePanel && canMoveItemToFolder(source.item.id, parentFolderId);
     panel.classList.remove('drag-out-ready');
 
-    if (!outsidePanel && !spatial) return;
+    if (!canMoveUp && !spatial) return;
     event.preventDefault();
     event.stopPropagation();
     const itemId = dragState.itemId;
     clearGroupHover();
+    clearSpringHover();
 
-    if (outsidePanel) {
-      moveItem(itemId, null, null);
+    if (canMoveUp) {
+      moveItem(itemId, parentFolderId, null);
     } else {
       reorderItem(itemId, spatial.targetId, spatial.before);
     }
@@ -1183,6 +1674,19 @@
     dragState = null;
     await persistAndRender();
   });
+
+  document.addEventListener('dragend', () => {
+    if (!dragState) return;
+    dragState.sourceElement?.classList.remove('dragging');
+    clearGroupHover();
+    clearSpringHover();
+    clearRootOutsideDrop();
+    clearFolderSpatialDrop();
+    document.querySelectorAll('.drop-before,.drop-after,.drop-target,.drag-target,.spring-target').forEach(node => {
+      node.classList.remove('drop-before', 'drop-after', 'drop-target', 'drag-target', 'spring-target');
+    });
+    setTimeout(() => { dragState = null; }, 0);
+  }, true);
 
   document.addEventListener('click', event => {
     if (!kindMenu.hidden && !event.target.closest('#kindSelect')) closeKindMenu();
@@ -1229,9 +1733,15 @@
   });
 
   async function init() {
-    config = normalizeConfig(await storageGet());
+    const stored = await storageGet();
+    config = normalizeConfig(stored);
+    if (stored && stored.version !== SCHEMA_VERSION && Array.isArray(stored.root)) {
+      await storageSet(config);
+    }
     populateKindSelect();
     applyPreferences();
+    await refreshPageContext();
+    await Promise.all([refreshShortcutStatus(), refreshUndoImportAvailability()]);
     const hashMatch = location.hash.match(/^#folder=([^&]+)/);
     if (hashMatch) {
       const folderId = decodeURIComponent(hashMatch[1]);

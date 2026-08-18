@@ -8,6 +8,8 @@
 # Local test artifacts
 .*-test.mjs
 *.log
+__pycache__/
+*.pyc
 
 # OS noise
 Thumbs.db

@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "NTP Groups",
-  "version": "0.1.13",
+  "version": "0.2.0",
   "description": "Grouped favorites and folders for a clean New Tab page.",
+  "minimum_chrome_version": "116",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -10,6 +11,22 @@
     "128": "icons/icon128.png"
   },
   "permissions": ["storage", "search", "favicon"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Return to NTP Groups Hub",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "commands": {
+    "return-to-hub": {
+      "suggested_key": "Alt+H",
+      "description": "Return to NTP Groups Hub"
+    }
+  },
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   }

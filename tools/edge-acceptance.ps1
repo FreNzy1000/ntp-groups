@@ -1,5 +1,6 @@
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type -AssemblyName System.Windows.Forms
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
@@ -14,6 +15,10 @@ public static class NtpTraverseWin32 {
   [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr hDlg, int id);
   [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
   [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
   public static IntPtr MakeLParam(int x,int y) { return (IntPtr)((y << 16) | (x & 0xffff)); }
   public static IntPtr FindByClass(IntPtr parent, string className) {
     IntPtr found=IntPtr.Zero;
@@ -130,6 +135,145 @@ function Invoke-TempEdgeNewTab([string]$profilePath){
   return $false
 }
 
+function Get-TempEdgeElementByName([string]$profilePath,[string]$name,[System.Windows.Automation.ControlType]$controlType){
+  $tempPids=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {$_.Name -eq 'msedge.exe' -and $_.CommandLine -like ('*'+$profilePath+'*')} | ForEach-Object {[int]$_.ProcessId})
+  if($tempPids.Count -eq 0){return $null}
+  $root=[System.Windows.Automation.AutomationElement]::RootElement
+  $winCond=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Window)
+  $typeCond=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,$controlType)
+  $fallback=$null
+  foreach($win in $root.FindAll([System.Windows.Automation.TreeScope]::Children,$winCond)){
+    try{
+      if($win.Current.ClassName -ne 'Chrome_WidgetWin_1'){continue}
+      if($tempPids -notcontains [int]$win.Current.ProcessId){continue}
+      foreach($el in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants,$typeCond)){
+        $r=$el.Current.BoundingRectangle
+        if($el.Current.IsOffscreen -or $r.Width -le 10 -or $r.Height -le 10){continue}
+        $actual=[string]$el.Current.Name
+        if($actual -eq $name){return $el}
+        if(-not $fallback -and $actual.EndsWith(' '+$name,[System.StringComparison]::Ordinal)){ $fallback=$el }
+      }
+    }catch{}
+  }
+  return $fallback
+}
+
+function Get-TempEdgeFolderTitle([string]$profilePath){
+  $el=Get-TempEdgeElementByName $profilePath 'Название папки' ([System.Windows.Automation.ControlType]::Edit)
+  if(-not $el){return ''}
+  try{
+    $p=$null
+    if($el.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$p)){return $p.Current.Value}
+  }catch{}
+  return ''
+}
+
+function Move-NtpMouse([int]$fromX,[int]$fromY,[int]$toX,[int]$toY,[int]$steps=14,[int]$delayMs=22){
+  foreach($i in 1..$steps){
+    $x=[int][Math]::Round($fromX+(($toX-$fromX)*$i/$steps))
+    $y=[int][Math]::Round($fromY+(($toY-$fromY)*$i/$steps))
+    [NtpTraverseWin32]::SetCursorPos($x,$y) | Out-Null
+    Start-Sleep -Milliseconds $delayMs
+  }
+}
+
+function Test-NativeHubShortcut([string]$profilePath){
+  $prepareRaw=(& node "$project\tools\.edge-hub-shortcut.mjs" $port prepare | Out-String).Trim()
+  if($LASTEXITCODE -ne 0){throw 'Could not prepare native Alt+H test'}
+  Write-Output ('HUB_SHORTCUT_PREPARE='+$prepareRaw)
+
+  $tempPids=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {$_.Name -eq 'msedge.exe' -and $_.CommandLine -like ('*'+$profilePath+'*')} | ForEach-Object {[int]$_.ProcessId})
+  $windowHandle=[IntPtr]::Zero
+  foreach($pidValue in $tempPids){
+    try{
+      $edgeProcess=Get-Process -Id $pidValue -ErrorAction Stop
+      if($edgeProcess.MainWindowHandle -ne 0){$windowHandle=[IntPtr]$edgeProcess.MainWindowHandle;break}
+    }catch{}
+  }
+  if($windowHandle -eq [IntPtr]::Zero){throw 'Could not resolve temporary Edge MainWindowHandle for Alt+H test'}
+  [NtpTraverseWin32]::SetForegroundWindow($windowHandle) | Out-Null
+  Start-Sleep -Milliseconds 260
+  if([NtpTraverseWin32]::GetForegroundWindow() -ne $windowHandle){throw 'Temporary Edge window did not become foreground for Alt+H test'}
+
+  try{
+    [System.Windows.Forms.SendKeys]::SendWait('%h')
+    Start-Sleep -Milliseconds 650
+    $verifyRaw=(& node "$project\tools\.edge-hub-shortcut.mjs" $port verify | Out-String).Trim()
+    Write-Output ('HUB_SHORTCUT_VERIFY='+$verifyRaw)
+    if($LASTEXITCODE -ne 0){throw 'Native Alt+H did not activate the pinned NTP Groups Hub'}
+    Write-Output 'NATIVE_HUB_SHORTCUT_PASS'
+  }
+  finally{
+    & node "$project\tools\.edge-hub-shortcut.mjs" $port cleanup | Out-Null
+    Start-Sleep -Milliseconds 180
+  }
+}
+
+function Test-NativeSpringDrag([string]$profilePath){
+  $source=Get-TempEdgeElementByName $profilePath 'Drag Site' ([System.Windows.Automation.ControlType]::Button)
+  $target=Get-TempEdgeElementByName $profilePath 'AI' ([System.Windows.Automation.ControlType]::Button)
+  if(-not $source -or -not $target){
+    $tempPids=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {$_.Name -eq 'msedge.exe' -and $_.CommandLine -like ('*'+$profilePath+'*')} | ForEach-Object {[int]$_.ProcessId})
+    $root=[System.Windows.Automation.AutomationElement]::RootElement
+    $winCond=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Window)
+    $buttonCond=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Button)
+    $names=@()
+    foreach($win in $root.FindAll([System.Windows.Automation.TreeScope]::Children,$winCond)){
+      try{
+        if($tempPids -notcontains [int]$win.Current.ProcessId){continue}
+        foreach($el in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants,$buttonCond)){
+          $r=$el.Current.BoundingRectangle
+          if(-not $el.Current.IsOffscreen -and $r.Width -gt 35 -and $r.Width -lt 130 -and $r.Height -gt 30 -and $r.Height -lt 115){
+            $names+=($el.Current.Name+'@'+[int]$r.Width+'x'+[int]$r.Height)
+          }
+        }
+      }catch{}
+    }
+    $candidateNames=(($names | Select-Object -Unique | Select-Object -First 40) -join '|')
+    Write-Output ('NATIVE_DRAG_UIA_CANDIDATES='+$candidateNames)
+    throw ('Native drag fixtures not visible. source='+(!!$source)+' target='+(!!$target))
+  }
+  $sr=$source.Current.BoundingRectangle
+  $tr=$target.Current.BoundingRectangle
+  $sx=[int]($sr.Left+$sr.Width/2); $sy=[int]($sr.Top+$sr.Height/2)
+  $tx=[int]($tr.Left+$tr.Width/2); $ty=[int]($tr.Top+$tr.Height/2)
+  [NtpTraverseWin32]::SetCursorPos($sx,$sy) | Out-Null
+  Start-Sleep -Milliseconds 120
+  $down=$false
+  try{
+    [NtpTraverseWin32]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+    $down=$true
+    Start-Sleep -Milliseconds 100
+    Move-NtpMouse $sx $sy ($sx+10) $sy 5 25
+    Move-NtpMouse ($sx+10) $sy $tx $ty 16 26
+    Start-Sleep -Milliseconds 950
+
+    $deep=$null
+    foreach($attempt in 1..12){
+      $deep=Get-TempEdgeElementByName $profilePath 'Deep' ([System.Windows.Automation.ControlType]::Button)
+      if($deep){break}
+      Start-Sleep -Milliseconds 100
+    }
+    if(-not $deep){throw 'Native drag did not spring-open AI while mouse remained down'}
+    $dr=$deep.Current.BoundingRectangle
+    $dx=[int]($dr.Left+$dr.Width/2); $dy=[int]($dr.Top+$dr.Height/2)
+    Move-NtpMouse $tx $ty $dx $dy 15 28
+    Start-Sleep -Milliseconds 950
+
+    $viewRaw=& node "$project\tools\.edge-view-probe.mjs" $port
+    if($LASTEXITCODE -ne 0){throw 'Could not inspect NTP after native second spring'}
+    $view=$viewRaw | ConvertFrom-Json
+    if($view.hash -ne '#folder=deep' -or $view.title -ne 'Deep'){
+      throw ('Native drag did not continue into Deep; hash=['+$view.hash+'] title=['+$view.title+'] deepTile=['+$view.deepTile+']')
+    }
+    Write-Output 'NATIVE_SPRING_DRAG_PASS'
+  }
+  finally{
+    if($down){[NtpTraverseWin32]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)}
+    Start-Sleep -Milliseconds 180
+  }
+}
+
 try{
   $u="http://127.0.0.1:$port/json/new?"+[uri]::EscapeDataString('edge://extensions/')
   Invoke-RestMethod -Method Put -Uri $u | Out-Null
@@ -243,6 +387,10 @@ try{
 
   node "$project\tools\.edge-acceptance-attached.mjs" $port
   if($LASTEXITCODE -ne 0){throw 'Attached Edge runtime acceptance failed'}
+  Test-NativeHubShortcut $profile
+  node "$project\tools\.edge-020-features.mjs" $port
+  if($LASTEXITCODE -ne 0){throw 'NTP Groups 0.2.0 feature acceptance failed'}
+  Test-NativeSpringDrag $profile
   Write-Output 'EDGE_ACCEPTANCE_PASS'
 }
 finally{

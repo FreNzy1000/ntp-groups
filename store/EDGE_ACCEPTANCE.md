@@ -2,7 +2,7 @@
 
 Run this checklist before the first Microsoft Edge Add-ons submission.
 
-**Current result:** PASS for NTP Groups 0.1.13 on Microsoft Edge 151.0.4129.86 in an isolated temporary profile. The real New Tab action rendered NTP Groups, storage/search/tabs runtime checks passed, hub mode rendered correctly, and the `_favicon` endpoint returned HTTP 200. Edge masks the outer CDP target as `edge://newtab/`; acceptance therefore verifies the rendered DOM/runtime context rather than relying on the outer target URL alone.
+**Current result:** PASS for NTP Groups 0.2.0 on Microsoft Edge 151.0.4129.86 in an isolated temporary profile. The real New Tab action rendered NTP Groups; storage/search/tab-operation checks, schema migration, nested folders, export/import/undo, Persistent Hub, `Alt+H`, favicon rendering, hide-to-Root, and real Windows mouse spring-drag all passed. Edge masks the outer CDP target as `edge://newtab/`; acceptance therefore verifies the rendered DOM/runtime context rather than relying on the outer target URL alone.
 
 Re-run with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\edge-acceptance.ps1` after any Edge-specific or New Tab-related change.
 
@@ -27,24 +27,27 @@ Re-run with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\edge-
 2. Verify site favicons and folder favicon previews render. This is a hard gate because NTP Groups currently uses the Chromium `_favicon` endpoint with the `favicon` permission.
 3. Open and close several groups; verify the transition has no full-screen shared-element flash.
 4. Rename a group inline. `Enter` must save; `Esc` must cancel the edit without closing the group on the same keypress.
-5. Reorder root sites and groups horizontally and spatially above/below the row.
-6. Drag a root site to the deliberate center-hover zone of another root site and create a group.
-7. Drag a root site into an existing group.
-8. Inside a group, reorder items using both direct-tile and free-space drops.
-9. Drag a site beyond the physical group-panel boundary and verify it moves to the root.
-10. Verify the outside-click behavior closes an open group.
-11. With **Открывать сайты в новой вкладке** enabled, click a site and verify a new active tab opens while the NTP Groups tab remains.
-12. Disable that setting and verify a normal click navigates the current tab instead.
-13. Use the search field and verify results use Edge's configured default search provider.
-14. Verify the settings-button visibility preference and reset-layout action.
-15. Open DevTools for the New Tab page and confirm there are no console errors, page errors, or failed local extension resources during the above flows.
+5. Reorder root sites and folders horizontally and spatially above/below the row.
+6. Drag a root site to the deliberate center-hover zone of another root site and create a folder.
+7. Drag sites and folders into valid parent folders; invalid moves must not create depth greater than two folder levels or cycles.
+8. Create a folder inside a root folder. On the second folder level, verify **Добавить…** opens the site editor directly.
+9. Hold a real drag over a valid folder target for about 750 ms. Verify it spring-opens without releasing the drag, then move the pointer and spring-open the second level. A stationary pointer must not cascade through both levels.
+10. Inside a folder, reorder items using both direct-tile and free-space drops.
+11. Drag an item beyond the physical folder-panel boundary and verify it moves to the parent container; from a first-level folder this means Root.
+12. Verify outside-click closes an open folder and hidden/minimized NTP returns to Root.
+13. With **Открывать сайты в новой вкладке** enabled, click a site and verify a new active tab opens while the NTP Groups tab remains. Disable it and confirm an ordinary non-Hub NTP can navigate in the current tab.
+14. Export the configuration, import a valid nested JSON backup, and verify **Отменить последний импорт** restores the previous layout.
+15. Enable **Постоянный Hub**. Verify the current NTP becomes pinned, a site/search opened from Hub uses a new active tab, and toolbar action / `Alt+H` returns to the existing Hub without replacing the current site tab.
+16. Use the search field and verify results use Edge's configured default search provider.
+17. Verify the settings-button visibility preference and reset-layout action.
+18. Open DevTools for the New Tab page and confirm there are no console errors, page errors, or failed local extension resources during the above flows.
 
 ## Package checks
 
-- Package: `D:\dev\NTP-Groups\dist\edge\NTP-Groups-0.1.13-edge.zip`
+- Package: `D:\dev\NTP-Groups\dist\edge\NTP-Groups-0.2.0-edge.zip`
 - `manifest.json` must be at the ZIP root.
 - Manifest version: 3.
-- Extension version: 0.1.13.
+- Extension version: 0.2.0.
 - No `update_url` field.
 - No remote code.
 - No host permissions.
@@ -63,6 +66,6 @@ Re-run with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\edge-
 
 ## Pass condition
 
-For `0.1.13`, the automated isolated-profile Edge gate passes the package/API/New Tab checks, including collapsing an open group after the NTP becomes hidden and returning to the root. The fresh-install root renders 0 preset sites and 4 neutral groups (Personal, Work, Social, School). Manual interaction checks remain useful as a final visual smoke test, but no Edge-specific compatibility blocker is currently known.
+For `0.2.0`, the automated isolated-profile Edge gate passes the package/API/New Tab checks plus schema v2 → v3 migration, two-level folders, direct-site final-level creation, JSON export/import/undo, Persistent Hub, actual `Alt+H`, and spring-loaded drag. The spring-drag gate uses a real Windows mouse-down and keeps the button held while Edge opens `AI` and then `Deep`, proving the native drag survives the DOM transition. Fresh install renders 0 preset sites and 4 neutral folders (Personal, Work, Social, Media). Manual visual smoke remains useful, but no Edge-specific compatibility blocker is currently known.
 
 If a future Edge-specific issue appears, fix it in source, bump the extension version, rebuild the Edge package, and repeat this checklist before submission.

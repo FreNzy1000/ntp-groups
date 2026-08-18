@@ -108,23 +108,35 @@ try {
       tabProbe.error = String(error?.message || error);
     }
 
-    let hideCollapseProbe = { opened: false, becameHidden: false, returnedRoot: false, error: null };
+    let hideCollapseProbe = { visibleBefore: false, opened: false, becameHidden: false, returnedRoot: false, error: null };
     try {
+      const waitUntil = async (predicate, timeoutMs = 2000) => {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+          if (predicate()) return true;
+          await new Promise(resolve => setTimeout(resolve, 40));
+        }
+        return Boolean(predicate());
+      };
+
+      const currentTab = await chrome.tabs.getCurrent();
+      if (currentTab?.id) await chrome.tabs.update(currentTab.id, { active: true });
+      if (Number.isInteger(currentTab?.windowId)) await chrome.windows.update(currentTab.windowId, { focused: true });
+      hideCollapseProbe.visibleBefore = await waitUntil(() => document.visibilityState === 'visible');
+
       const folderTile = document.querySelector('.folder-tile');
       folderTile?.click();
-      await new Promise(resolve => setTimeout(resolve, 120));
-      hideCollapseProbe.opened = Boolean(document.querySelector('.folder-panel')) && location.hash.startsWith('#folder=');
+      hideCollapseProbe.opened = await waitUntil(() => Boolean(document.querySelector('.folder-panel')) && location.hash.startsWith('#folder='));
 
       const created = await chrome.tabs.create({ url: 'about:blank', active: true });
-      await new Promise(resolve => setTimeout(resolve, 220));
-      hideCollapseProbe.becameHidden = document.visibilityState === 'hidden';
+      hideCollapseProbe.becameHidden = await waitUntil(() => document.visibilityState === 'hidden');
       if (created?.id) await chrome.tabs.remove(created.id);
-      await new Promise(resolve => setTimeout(resolve, 220));
 
-      hideCollapseProbe.returnedRoot = !document.querySelector('.folder-panel')
+      hideCollapseProbe.returnedRoot = await waitUntil(() => document.visibilityState === 'visible'
+        && !document.querySelector('.folder-panel')
         && Boolean(document.querySelector('.folder-tile'))
         && !location.hash
-        && !history.state?.folderId;
+        && !history.state?.folderId);
     } catch (error) {
       hideCollapseProbe.error = String(error?.message || error);
     }
@@ -160,7 +172,7 @@ try {
 
   const checks = {
     name: probe.manifest.name === 'NTP Groups',
-    version: probe.manifest.version === '0.1.13',
+    version: probe.manifest.version === '0.2.0',
     manifestV3: probe.manifest.manifestVersion === 3,
     newtabOverride: probe.manifest.newtab === 'newtab.html',
     noUpdateUrl: probe.manifest.hasUpdateUrl === false,
@@ -169,7 +181,8 @@ try {
     tabsApi: probe.api.tabsCreate === true,
     storageRoundTrip: probe.storageRoundTrip === true,
     tabCreateRemove: probe.tabProbe.created === true && probe.tabProbe.removed === true,
-    hideCollapsesGroup: probe.hideCollapseProbe.opened === true
+    hideCollapsesGroup: probe.hideCollapseProbe.visibleBefore === true
+      && probe.hideCollapseProbe.opened === true
       && probe.hideCollapseProbe.becameHidden === true
       && probe.hideCollapseProbe.returnedRoot === true,
     faviconEndpoint: probe.favicon.ok === true,

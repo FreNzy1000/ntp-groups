@@ -2,6 +2,25 @@
 
 All notable public changes to NTP Groups are documented here.
 
+## 0.2.0 — 2026-08-18
+
+### Added
+- Added portable JSON **Export / Import** for the complete NTP Groups configuration, including preferences and nested folder structure. Import validates the file before replacing data and keeps one rollback snapshot for **Undo last import**.
+- Added folders inside folders with a deliberately bounded maximum depth of two folder levels. At the final level, **Add** opens the site editor directly instead of showing another type choice.
+- Added spring-loaded folder navigation while dragging: hovering a valid folder target for about 750 ms opens it without releasing the dragged item. After a spring-open, the pointer must move before another level can open, preventing accidental rapid drill-down.
+- Added optional **Persistent Hub** mode. Each normal browser window can keep one pinned NTP Groups Hub; the toolbar action and **Alt+H** return to that Hub without navigating or replacing the current site tab.
+- Added a Manifest V3 service worker for Hub lifecycle management while keeping permissions limited to `storage`, `search`, and `favicon`.
+
+### Changed
+- Replaced the School starter folder with **Media** for a more universal first-run layout: **Personal**, **Work**, **Social**, and **Media**.
+- When a page is the Persistent Hub, opening a saved site or submitting search opens a new active tab so the Hub itself remains unchanged.
+- Browser-owned New Tab extension attribution is intentionally not exposed as an NTP Groups setting because an extension cannot control that browser-owned UI.
+- Rebuilt the app icon so the rounded group container itself forms the icon silhouette on a transparent outer canvas, with no additional square background.
+- NTP Groups now uses the same grouped mark as the New Tab favicon instead of the older scratch-only favicon.
+
+### Verified
+- Edge isolated-profile acceptance passes on Microsoft Edge 151.0.4129.86, including schema v2 → v3 migration, nested folder creation, export/import/undo, Persistent Hub behavior, `Alt+H`, and real Windows mouse spring-drag through two folder levels.
+
 ## 0.1.13 — 2026-08-18
 
 ### Changed
