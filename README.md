@@ -1,11 +1,13 @@
 # NTP Groups
 
+<p align="center"><img src="icons/icon128.png" width="96" height="96" alt="NTP Groups logo"></p>
+
 A minimal Manifest V3 New Tab override that adds folders/groups for favorite sites while keeping the interface compact and browser-native. The current visual tuning targets Brave first.
 
 ## Design goals
 
 - Native-feeling Brave layout, not a dashboard theme.
-- Root favorites stay compact, with generic default shortcuts plus grouped folders.
+- First run starts with four empty neutral groups — Personal, Work, Social, and School — so the extension demonstrates grouping without assuming which sites the user wants.
 - Folder tiles preview the first four favicons.
 - Folder opening is an in-place transition, not navigation to a separate dashboard.
 - Folder titles are editable inline without opening a separate rename dialog.

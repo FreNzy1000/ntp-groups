@@ -2,6 +2,12 @@
 
 All notable public changes to NTP Groups are documented here.
 
+## 0.1.12 — 2026-08-18
+
+### Changed
+- Replaced opinionated first-run sites and topic-specific folders with four empty, neutral starter groups: **Personal**, **Work**, **Social**, and **School**.
+- Existing saved layouts are preserved; the new starter layout applies only to fresh installs and Reset Layout.
+
 ## 0.1.11 — 2026-08-18
 
 ### Added

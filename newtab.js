@@ -11,42 +11,10 @@
       openSitesInNewTab: true
     },
     root: [
-      { kind: 'site', id: 'youtube', title: 'YouTube', url: 'https://www.youtube.com/' },
-      { kind: 'site', id: 'gmail', title: 'Gmail', url: 'https://mail.google.com/' },
-      { kind: 'site', id: 'wikipedia', title: 'Wikipedia', url: 'https://www.wikipedia.org/' },
-      {
-        kind: 'folder', id: 'work', title: 'Work', items: [
-          { kind: 'site', id: 'google-drive', title: 'Google Drive', url: 'https://drive.google.com/' },
-          { kind: 'site', id: 'google-docs', title: 'Google Docs', url: 'https://docs.google.com/' },
-          { kind: 'site', id: 'slack', title: 'Slack', url: 'https://app.slack.com/' },
-          { kind: 'site', id: 'notion', title: 'Notion', url: 'https://www.notion.so/' }
-        ]
-      },
-      {
-        kind: 'folder', id: 'ai-dev', title: 'Dev', items: [
-          { kind: 'site', id: 'github', title: 'GitHub', url: 'https://github.com/' },
-          { kind: 'site', id: 'mdn', title: 'MDN', url: 'https://developer.mozilla.org/' },
-          { kind: 'site', id: 'stack-overflow', title: 'Stack Overflow', url: 'https://stackoverflow.com/' },
-          { kind: 'site', id: 'docker-hub', title: 'Docker Hub', url: 'https://hub.docker.com/' },
-          { kind: 'site', id: 'hugging-face', title: 'Hugging Face', url: 'https://huggingface.co/' }
-        ]
-      },
-      {
-        kind: 'folder', id: 'study', title: 'Study', items: [
-          { kind: 'site', id: 'notebooklm', title: 'NotebookLM', url: 'https://notebooklm.google.com/' },
-          { kind: 'site', id: 'khan-academy', title: 'Khan Academy', url: 'https://www.khanacademy.org/' },
-          { kind: 'site', id: 'coursera', title: 'Coursera', url: 'https://www.coursera.org/' },
-          { kind: 'site', id: 'google-translate', title: 'Google Translate', url: 'https://translate.google.com/' }
-        ]
-      },
-      {
-        kind: 'folder', id: 'research', title: 'Research', items: [
-          { kind: 'site', id: 'google-scholar', title: 'Google Scholar', url: 'https://scholar.google.com/' },
-          { kind: 'site', id: 'arxiv', title: 'arXiv', url: 'https://arxiv.org/' },
-          { kind: 'site', id: 'pubmed', title: 'PubMed', url: 'https://pubmed.ncbi.nlm.nih.gov/' },
-          { kind: 'site', id: 'openalex', title: 'OpenAlex', url: 'https://openalex.org/' }
-        ]
-      }
+      { kind: 'folder', id: 'personal', title: 'Personal', items: [] },
+      { kind: 'folder', id: 'work', title: 'Work', items: [] },
+      { kind: 'folder', id: 'social', title: 'Social', items: [] },
+      { kind: 'folder', id: 'school', title: 'School', items: [] }
     ]
   };
 

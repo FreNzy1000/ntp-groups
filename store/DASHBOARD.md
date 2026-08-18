@@ -54,7 +54,7 @@ Use the published GitHub Pages URL in the Privacy Policy field:
 1. Install the extension.
 2. Open a new tab.
 3. Confirm that NTP Groups replaces the New Tab page.
-4. Open a group such as Research.
+4. Open one of the neutral starter groups, such as Personal or Work.
 5. Add a site, choose its location, and save it.
 6. Rename a group by clicking its title and editing it inline.
 7. Drag a shortcut outside an open group and confirm it returns to the root.
@@ -85,10 +85,10 @@ Optional, not required for the first submission:
 
 ## Final pre-submit checks
 
-**Current extension version:** `0.1.11`
+**Current extension version:** `0.1.12`
 
 - Privacy Policy is published and verified at `https://frenzy1000.github.io/ntp-groups/store/privacy/`.
-- Enable the Chrome Web Store built-in Support hub for user support, or provide a dedicated Support URL later if desired.
+- Public support URL: `https://github.com/FreNzy1000/ntp-groups/issues`.
 - Ensure the Store listing screenshots show the current NTP Groups branding and current UI.
 - Re-test on Chrome after packaging.
 - Verify the ZIP has `manifest.json` at its root.
