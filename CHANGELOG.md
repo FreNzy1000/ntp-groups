@@ -2,6 +2,16 @@
 
 All notable public changes to NTP Groups are documented here.
 
+## 0.2.1 — 2026-08-18
+
+### Fixed
+- Persistent Hub no longer forces itself back to the first pinned-tab slot. Its position inside the pinned strip is now fully user-owned; Return to Hub only ensures the existing Hub is pinned and activates it.
+- Compact 16×16 and 32×32 icons now use only the blue active-cell glyph with enlarged claw scratches instead of shrinking the full 2×2 group mark into unreadable pixels.
+- Hub settings copy no longer hard-codes `Alt+H`; the UI already reads and displays the browser's actual assigned shortcut.
+
+### Verified
+- Edge regression acceptance moves the Hub to pinned index 1 before sending the real shortcut and verifies that Return to Hub activates it without changing that index.
+
 ## 0.2.0 — 2026-08-18
 
 ### Added

@@ -15,10 +15,10 @@ A compact Manifest V3 New Tab replacement for organizing favorite sites into fol
 - While dragging, hovering a valid folder for about **750 ms** spring-opens it without releasing the dragged item. After a spring-open, pointer movement is required before another level can spring-open, which prevents accidental rapid drill-down.
 - Open-folder navigation is transient. When the NTP becomes hidden, including switching tabs or minimizing the browser window, it collapses back to Root.
 - **Export / Import** moves the complete configuration between Chromium browsers as JSON. Imports are validated first and keep one rollback snapshot for **Undo last import**.
-- **Persistent Hub** is optional. When enabled, each normal browser window can keep one pinned NTP Groups Hub. The extension toolbar button and **Alt+H** activate that Hub instead of navigating the current site tab.
+- **Persistent Hub** is optional. When enabled, each normal browser window can keep one pinned NTP Groups Hub. The extension toolbar button and the assigned shortcut (default **Alt+H**) activate that Hub instead of navigating the current site tab. The Hub's position inside the pinned strip is user-owned and is never forced back to a fixed slot.
 - Sites and searches launched from a Persistent Hub always open in a new active tab so the Hub itself stays unchanged.
 - The ordinary `Ctrl+T` and browser `+` behavior is intentionally left native. NTP Groups does not create-and-destroy temporary tabs to simulate a single New Tab singleton.
-- The app icon has a transparent outer canvas; the rounded group container itself is the silhouette.
+- The app icon has a transparent outer canvas. Large sizes (48/128) use the full 2×2 group mark; compact sizes (16/32) use only the blue active cell with enlarged scratches for legibility.
 - No framework, build system, remote scripts, analytics, ads, trackers, or developer-operated backend.
 - Permissions remain limited to `storage`, `search`, and `favicon`; there are no host permissions and no `tabs` permission.
 - Search uses only `chrome.search.query`, so the browser's configured default search provider remains authoritative.

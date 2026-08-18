@@ -365,7 +365,7 @@ try {
   cdp.ws.close();
 
   const checks = {
-    version: results.manifest?.version === '0.2.0',
+    version: results.manifest?.version === '0.2.1',
     permissionsUnchanged: Array.isArray(results.manifest?.permissions)
       && !results.manifest.permissions.includes('tabs')
       && JSON.stringify([...results.manifest.permissions].sort()) === JSON.stringify(['favicon','search','storage']),

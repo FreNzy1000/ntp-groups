@@ -72,13 +72,47 @@ def make_master():
     return img
 
 
+def make_compact_master():
+    """Small-size glyph: the blue active cell only, with oversized scratches.
+
+    A full 2x2 group is legible at 48/128 px but collapses into noise at 16/32 px.
+    The compact glyph keeps the same brand element while giving the scratches enough pixels.
+    """
+    img = Image.new("RGBA", (MASTER, MASTER), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+
+    outer = (104, 104, 920, 920)
+    rounded_vertical_gradient(img, outer, 220, (48, 141, 255, 255), (7, 92, 235, 255))
+    d.rounded_rectangle(outer, radius=220, outline=(124, 193, 255, 190), width=22)
+    d.rounded_rectangle((128, 128, 896, 896), radius=196, outline=(0, 0, 0, 78), width=18)
+
+    scratches = [
+        ((282, 665), (468, 390)),
+        ((421, 724), (607, 449)),
+        ((560, 778), (735, 520)),
+    ]
+    for p0, p1 in scratches:
+        color = (235, 247, 255, 255)
+        width = 92
+        radius = width // 2
+        d.line((*p0, *p1), fill=color, width=width)
+        d.ellipse((p0[0] - radius, p0[1] - radius, p0[0] + radius, p0[1] + radius), fill=color)
+        d.ellipse((p1[0] - radius, p1[1] - radius, p1[0] + radius, p1[1] + radius), fill=color)
+
+    return img
+
+
 def main():
     ICONS.mkdir(parents=True, exist_ok=True)
-    master = make_master()
-    for size in (128, 48, 32, 16):
-        icon = master.resize((size, size), Image.Resampling.LANCZOS)
+    full = make_master()
+    compact = make_compact_master()
+    for size in (128, 48):
+        icon = full.resize((size, size), Image.Resampling.LANCZOS)
         icon.save(ICONS / f"icon{size}.png", optimize=True)
-    print("generated", ", ".join(f"icon{s}.png" for s in (16, 32, 48, 128)))
+    for size in (32, 16):
+        icon = compact.resize((size, size), Image.Resampling.LANCZOS)
+        icon.save(ICONS / f"icon{size}.png", optimize=True)
+    print("generated adaptive icons: compact 16/32, full 48/128")
 
 
 if __name__ == "__main__":

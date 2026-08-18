@@ -172,7 +172,7 @@ try {
 
   const checks = {
     name: probe.manifest.name === 'NTP Groups',
-    version: probe.manifest.version === '0.2.0',
+    version: probe.manifest.version === '0.2.1',
     manifestV3: probe.manifest.manifestVersion === 3,
     newtabOverride: probe.manifest.newtab === 'newtab.html',
     noUpdateUrl: probe.manifest.hasUpdateUrl === false,

@@ -65,9 +65,16 @@ try {
       const current=await chrome.tabs.getCurrent();
       if(current?.id) await chrome.tabs.update(current.id,{pinned:true,active:true});
       await chrome.runtime.sendMessage({type:'ntp-groups-page-context'});
+      const sentinel=await chrome.tabs.create({windowId:current.windowId,url:'about:blank',active:false,pinned:true,index:0});
+      await chrome.tabs.move(current.id,{index:1});
+      const positioned=await chrome.tabs.get(current.id);
       const ordinary=await chrome.tabs.create({windowId:current.windowId,url:'about:blank',active:true,pinned:false});
+      await chrome.storage.session.set({
+        ntpGroupsHubTestSentinel:sentinel.id,
+        ntpGroupsHubTestOrdinary:ordinary.id
+      });
       await chrome.windows.update(current.windowId,{focused:true});
-      return {hubId:current.id,ordinaryId:ordinary.id,windowId:current.windowId};
+      return {hubId:current.id,ordinaryId:ordinary.id,sentinelId:sentinel.id,windowId:current.windowId,expectedIndex:positioned.index};
     })()`);
     console.log(JSON.stringify(result));
   } else if (mode === 'verify') {
@@ -76,16 +83,33 @@ try {
       const active=(await chrome.tabs.query({active:true,windowId:current.windowId}))[0];
       const contexts=await chrome.runtime.getContexts({contextTypes:['TAB']});
       const ownIds=new Set(contexts.filter(ctx=>ctx.documentUrl?.includes('/newtab.html')).map(ctx=>ctx.tabId));
-      return {activeId:active?.id||null,pinned:Boolean(active?.pinned),isNtp:ownIds.has(active?.id),windowId:current.windowId};
+      return {activeId:active?.id||null,pinned:Boolean(active?.pinned),isNtp:ownIds.has(active?.id),index:active?.index??null,windowId:current.windowId};
     })()`);
     console.log(JSON.stringify(result));
-    if (!(result.pinned && result.isNtp)) process.exitCode = 1;
+    if (!(result.pinned && result.isNtp && result.index === 1)) process.exitCode = 1;
   } else if (mode === 'cleanup') {
     const result = await evaluate(cdp, `(async()=>{
       const stored=(await chrome.storage.local.get('${STORAGE_KEY}'))['${STORAGE_KEY}'];
       if(stored){stored.preferences={...(stored.preferences||{}),persistentHub:false};await chrome.storage.local.set({['${STORAGE_KEY}']:stored});}
       const current=await chrome.tabs.getCurrent();
-      if(current?.id&&current.pinned)await chrome.tabs.update(current.id,{pinned:false});
+      const session=await chrome.storage.session.get([
+        'ntpGroupsHubTestSentinel',
+        'ntpGroupsHubTestOrdinary'
+      ]);
+      if(Number.isInteger(session.ntpGroupsHubTestOrdinary)){
+        try{await chrome.tabs.remove(session.ntpGroupsHubTestOrdinary);}catch{}
+      }
+      if(Number.isInteger(session.ntpGroupsHubTestSentinel)){
+        try{await chrome.tabs.remove(session.ntpGroupsHubTestSentinel);}catch{}
+      }
+      await chrome.storage.session.remove([
+        'ntpGroupsHubTestSentinel',
+        'ntpGroupsHubTestOrdinary'
+      ]);
+      if(current?.id){
+        await chrome.tabs.update(current.id,{pinned:false,active:true});
+        if(Number.isInteger(current.windowId))await chrome.windows.update(current.windowId,{focused:true});
+      }
       return true;
     })()`);
     console.log(JSON.stringify({ok:Boolean(result)}));

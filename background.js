@@ -103,7 +103,8 @@ async function pinAsHub(tab, activate = false) {
   if (!tab?.id || !Number.isInteger(tab.windowId)) return null;
   try {
     const updated = await chrome.tabs.update(tab.id, { pinned: true, active: activate || Boolean(tab.active) });
-    try { await chrome.tabs.move(tab.id, { index: 0 }); } catch {}
+    // Position is user-owned. Persistent Hub only guarantees that the tab exists and is pinned;
+    // manually reordering it within the pinned strip must never be undone on Return to Hub.
     await setHubForWindow(tab.windowId, tab.id);
     if (activate) {
       try { await chrome.windows.update(tab.windowId, { focused: true }); } catch {}
@@ -134,8 +135,7 @@ async function ensureHubForWindow(windowId, { preferredTabId = null, activate = 
       windowId,
       url: 'chrome://newtab/',
       pinned: true,
-      active: activate,
-      index: 0
+      active: activate
     });
     if (created?.id) await setHubForWindow(windowId, created.id);
     if (activate) {

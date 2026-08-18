@@ -179,7 +179,7 @@ function Move-NtpMouse([int]$fromX,[int]$fromY,[int]$toX,[int]$toY,[int]$steps=1
 
 function Test-NativeHubShortcut([string]$profilePath){
   $prepareRaw=(& node "$project\tools\.edge-hub-shortcut.mjs" $port prepare | Out-String).Trim()
-  if($LASTEXITCODE -ne 0){throw 'Could not prepare native Alt+H test'}
+  if($LASTEXITCODE -ne 0){throw 'Could not prepare native Hub shortcut test'}
   Write-Output ('HUB_SHORTCUT_PREPARE='+$prepareRaw)
 
   $tempPids=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {$_.Name -eq 'msedge.exe' -and $_.CommandLine -like ('*'+$profilePath+'*')} | ForEach-Object {[int]$_.ProcessId})
@@ -190,17 +190,17 @@ function Test-NativeHubShortcut([string]$profilePath){
       if($edgeProcess.MainWindowHandle -ne 0){$windowHandle=[IntPtr]$edgeProcess.MainWindowHandle;break}
     }catch{}
   }
-  if($windowHandle -eq [IntPtr]::Zero){throw 'Could not resolve temporary Edge MainWindowHandle for Alt+H test'}
+  if($windowHandle -eq [IntPtr]::Zero){throw 'Could not resolve temporary Edge MainWindowHandle for Hub shortcut test'}
   [NtpTraverseWin32]::SetForegroundWindow($windowHandle) | Out-Null
   Start-Sleep -Milliseconds 260
-  if([NtpTraverseWin32]::GetForegroundWindow() -ne $windowHandle){throw 'Temporary Edge window did not become foreground for Alt+H test'}
+  if([NtpTraverseWin32]::GetForegroundWindow() -ne $windowHandle){throw 'Temporary Edge window did not become foreground for Hub shortcut test'}
 
   try{
     [System.Windows.Forms.SendKeys]::SendWait('%h')
     Start-Sleep -Milliseconds 650
     $verifyRaw=(& node "$project\tools\.edge-hub-shortcut.mjs" $port verify | Out-String).Trim()
     Write-Output ('HUB_SHORTCUT_VERIFY='+$verifyRaw)
-    if($LASTEXITCODE -ne 0){throw 'Native Alt+H did not activate the pinned NTP Groups Hub'}
+    if($LASTEXITCODE -ne 0){throw 'Native Hub shortcut did not activate the pinned NTP Groups Hub without changing its pinned position'}
     Write-Output 'NATIVE_HUB_SHORTCUT_PASS'
   }
   finally{
@@ -389,7 +389,7 @@ try{
   if($LASTEXITCODE -ne 0){throw 'Attached Edge runtime acceptance failed'}
   Test-NativeHubShortcut $profile
   node "$project\tools\.edge-020-features.mjs" $port
-  if($LASTEXITCODE -ne 0){throw 'NTP Groups 0.2.0 feature acceptance failed'}
+  if($LASTEXITCODE -ne 0){throw 'NTP Groups 0.2.1 feature acceptance failed'}
   Test-NativeSpringDrag $profile
   Write-Output 'EDGE_ACCEPTANCE_PASS'
 }

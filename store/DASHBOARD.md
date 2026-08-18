@@ -64,7 +64,7 @@ Use the published GitHub Pages URL in the Privacy Policy field:
 11. Click outside an open folder and confirm it closes.
 12. With "Открывать сайты в новой вкладке" enabled, click a site and confirm it opens in a new active tab while the NTP Groups tab remains open. Disable the setting and confirm a normal site click navigates the current tab instead.
 13. Export the configuration, import a valid NTP Groups JSON backup, and confirm **Отменить последний импорт** restores the previous configuration.
-14. Enable **Постоянный Hub** and confirm the current NTP becomes pinned. Navigate to another tab and use the toolbar action or **Alt+H**; the browser must activate the existing Hub without replacing the current site tab.
+14. Enable **Постоянный Hub** and confirm the current NTP becomes pinned. Move the Hub to another pinned position, navigate to another tab, then use the toolbar action or assigned Return to Hub shortcut; the browser must activate the existing Hub without replacing the current site tab or moving the Hub back.
 15. From the Persistent Hub, open a saved site and perform a search; both must open in new active tabs while the Hub remains unchanged.
 16. Use the search field outside Persistent Hub and confirm results use the browser's configured default search provider.
 17. Open settings and reset the layout if needed.
@@ -90,7 +90,7 @@ Optional, not required for the first submission:
 
 ## Final pre-submit checks
 
-**Current extension version:** `0.2.0`
+**Current extension version:** `0.2.1`
 
 - Privacy Policy is published and verified at `https://frenzy1000.github.io/ntp-groups/store/privacy/`.
 - Public support URL: `https://github.com/FreNzy1000/ntp-groups/issues`.
