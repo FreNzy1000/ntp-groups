@@ -2,6 +2,12 @@
 
 All notable public changes to NTP Groups are documented here.
 
+## 0.1.13 — 2026-08-18
+
+### Changed
+- Open groups now collapse back to the root whenever the NTP becomes hidden, including switching tabs or minimizing the browser window.
+- Current-tab site navigation and search clear transient group history before leaving, so returning to NTP starts at the root.
+
 ## 0.1.12 — 2026-08-18
 
 ### Changed

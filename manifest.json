@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NTP Groups",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Grouped favorites and folders for a clean New Tab page.",
   "icons": {
     "16": "icons/icon16.png",

@@ -2,15 +2,15 @@
 
 ## Package
 
-`D:\dev\NTP-Groups\dist\edge\NTP-Groups-0.1.12-edge.zip`
+`D:\dev\NTP-Groups\dist\edge\NTP-Groups-0.1.13-edge.zip`
 
-The package is byte-identical to the Chromium 0.1.12 package and contains no `update_url` field.
+The package is byte-identical to the Chromium 0.1.13 package and contains no `update_url` field.
 
 ## Current Partner Center submission defaults
 
 ### Packages
 
-Upload: `D:\dev\NTP-Groups\dist\edge\NTP-Groups-0.1.12-edge.zip`
+Upload: `D:\dev\NTP-Groups\dist\edge\NTP-Groups-0.1.13-edge.zip`
 
 ### Availability
 
@@ -98,7 +98,7 @@ No account, login, paid service, or test credentials are required. Open a new ta
 
 ## Compatibility / validation status
 
-Edge-specific sideload acceptance for **NTP Groups 0.1.12 passed** on Microsoft Edge 151.0.4129.86 using an isolated temporary profile and the real **Load unpacked** flow.
+Edge-specific sideload acceptance for **NTP Groups 0.1.13 passed** on Microsoft Edge 151.0.4129.86 using an isolated temporary profile and the real **Load unpacked** flow.
 
 Verified:
 
@@ -109,6 +109,7 @@ Verified:
 - `chrome.tabs.create` and tab removal pass without adding the `tabs` permission.
 - The Chromium `_favicon` endpoint used by NTP Groups responds successfully in Edge (`HTTP 200`).
 - NTP Groups UI renders with the fresh-install layout of four empty neutral groups (Personal, Work, Social, School), Settings, and hub mode enabled by default.
+- Opening a group, switching to a newly active tab, and returning collapses the transient group state back to the root.
 - The package contains no `update_url` field.
 
-The Edge and Chromium 0.1.12 ZIPs are byte-identical (SHA-256 `04133DAD0295CC7A48B62559F181C9E5CFDB82AB43AD73D02D6ADFAAADB1DCC9`).
+The Edge and Chromium 0.1.13 ZIPs are byte-identical (SHA-256 `39302151D6C8DA89FC1DACF9E9EDB52FBFA9DEBBB3798C02112AE13AD025527E`).

@@ -167,6 +167,15 @@
     }
   }
 
+  function resetToRoot({ render = true } = {}) {
+    const hadFolderState = Boolean(activeFolderId || history.state?.folderId || location.hash.startsWith('#folder='));
+    if (!hadFolderState) return false;
+    activeFolderId = null;
+    history.replaceState(null, '', location.pathname);
+    if (render) renderView();
+    return true;
+  }
+
   function openSite(site, newTab = false) {
     if (!site?.url) return;
     if (newTab) {
@@ -177,6 +186,7 @@
       }
       return;
     }
+    resetToRoot({ render: false });
     location.href = site.url;
   }
 
@@ -979,6 +989,7 @@
       return;
     }
     try {
+      resetToRoot({ render: false });
       await chrome.search.query({ text, disposition: 'CURRENT_TAB' });
     } catch (error) {
       console.warn('Default-provider search failed', error);
@@ -1207,6 +1218,14 @@
   window.addEventListener('popstate', event => {
     const nextFolder = event.state?.folderId || null;
     transition(() => { activeFolderId = nextFolder && getFolder(nextFolder) ? nextFolder : null; });
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') resetToRoot();
+  });
+
+  window.addEventListener('pagehide', () => {
+    resetToRoot({ render: false });
   });
 
   async function init() {

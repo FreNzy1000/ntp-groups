@@ -2,7 +2,7 @@
 
 Run this checklist before the first Microsoft Edge Add-ons submission.
 
-**Current result:** PASS for NTP Groups 0.1.12 on Microsoft Edge 151.0.4129.86 in an isolated temporary profile. The real New Tab action rendered NTP Groups, storage/search/tabs runtime checks passed, hub mode rendered correctly, and the `_favicon` endpoint returned HTTP 200. Edge masks the outer CDP target as `edge://newtab/`; acceptance therefore verifies the rendered DOM/runtime context rather than relying on the outer target URL alone.
+**Current result:** PASS for NTP Groups 0.1.13 on Microsoft Edge 151.0.4129.86 in an isolated temporary profile. The real New Tab action rendered NTP Groups, storage/search/tabs runtime checks passed, hub mode rendered correctly, and the `_favicon` endpoint returned HTTP 200. Edge masks the outer CDP target as `edge://newtab/`; acceptance therefore verifies the rendered DOM/runtime context rather than relying on the outer target URL alone.
 
 Re-run with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\edge-acceptance.ps1` after any Edge-specific or New Tab-related change.
 
@@ -41,10 +41,10 @@ Re-run with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\edge-
 
 ## Package checks
 
-- Package: `D:\dev\NTP-Groups\dist\edge\NTP-Groups-0.1.12-edge.zip`
+- Package: `D:\dev\NTP-Groups\dist\edge\NTP-Groups-0.1.13-edge.zip`
 - `manifest.json` must be at the ZIP root.
 - Manifest version: 3.
-- Extension version: 0.1.12.
+- Extension version: 0.1.13.
 - No `update_url` field.
 - No remote code.
 - No host permissions.
@@ -63,6 +63,6 @@ Re-run with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\edge-
 
 ## Pass condition
 
-For `0.1.12`, the automated isolated-profile Edge gate passes the package/API/New Tab checks. The fresh-install root renders 0 preset sites and 4 neutral groups (Personal, Work, Social, School). Manual interaction checks remain useful as a final visual smoke test, but no Edge-specific compatibility blocker is currently known.
+For `0.1.13`, the automated isolated-profile Edge gate passes the package/API/New Tab checks, including collapsing an open group after the NTP becomes hidden and returning to the root. The fresh-install root renders 0 preset sites and 4 neutral groups (Personal, Work, Social, School). Manual interaction checks remain useful as a final visual smoke test, but no Edge-specific compatibility blocker is currently known.
 
 If a future Edge-specific issue appears, fix it in source, bump the extension version, rebuild the Edge package, and repeat this checklist before submission.

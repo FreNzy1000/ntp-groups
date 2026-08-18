@@ -85,7 +85,7 @@ Optional, not required for the first submission:
 
 ## Final pre-submit checks
 
-**Current extension version:** `0.1.12`
+**Current extension version:** `0.1.13`
 
 - Privacy Policy is published and verified at `https://frenzy1000.github.io/ntp-groups/store/privacy/`.
 - Public support URL: `https://github.com/FreNzy1000/ntp-groups/issues`.

@@ -108,6 +108,27 @@ try {
       tabProbe.error = String(error?.message || error);
     }
 
+    let hideCollapseProbe = { opened: false, becameHidden: false, returnedRoot: false, error: null };
+    try {
+      const folderTile = document.querySelector('.folder-tile');
+      folderTile?.click();
+      await new Promise(resolve => setTimeout(resolve, 120));
+      hideCollapseProbe.opened = Boolean(document.querySelector('.folder-panel')) && location.hash.startsWith('#folder=');
+
+      const created = await chrome.tabs.create({ url: 'about:blank', active: true });
+      await new Promise(resolve => setTimeout(resolve, 220));
+      hideCollapseProbe.becameHidden = document.visibilityState === 'hidden';
+      if (created?.id) await chrome.tabs.remove(created.id);
+      await new Promise(resolve => setTimeout(resolve, 220));
+
+      hideCollapseProbe.returnedRoot = !document.querySelector('.folder-panel')
+        && Boolean(document.querySelector('.folder-tile'))
+        && !location.hash
+        && !history.state?.folderId;
+    } catch (error) {
+      hideCollapseProbe.error = String(error?.message || error);
+    }
+
     const ui = {
       rootSites: document.querySelectorAll('.site-tile').length,
       rootFolders: document.querySelectorAll('.folder-tile').length,
@@ -129,6 +150,7 @@ try {
       storageRoundTrip: stored?.[probeKey]?.ok === true,
       favicon,
       tabProbe,
+      hideCollapseProbe,
       ui,
       href: location.href,
       title: document.title,
@@ -138,7 +160,7 @@ try {
 
   const checks = {
     name: probe.manifest.name === 'NTP Groups',
-    version: probe.manifest.version === '0.1.12',
+    version: probe.manifest.version === '0.1.13',
     manifestV3: probe.manifest.manifestVersion === 3,
     newtabOverride: probe.manifest.newtab === 'newtab.html',
     noUpdateUrl: probe.manifest.hasUpdateUrl === false,
@@ -147,6 +169,9 @@ try {
     tabsApi: probe.api.tabsCreate === true,
     storageRoundTrip: probe.storageRoundTrip === true,
     tabCreateRemove: probe.tabProbe.created === true && probe.tabProbe.removed === true,
+    hideCollapsesGroup: probe.hideCollapseProbe.opened === true
+      && probe.hideCollapseProbe.becameHidden === true
+      && probe.hideCollapseProbe.returnedRoot === true,
     faviconEndpoint: probe.favicon.ok === true,
     uiRendered: probe.ui.settingsButton === true && probe.ui.hubToggle === true && (probe.ui.rootSites + probe.ui.rootFolders) > 0,
     hubModeDefault: probe.ui.hubToggleChecked === true,
