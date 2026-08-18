@@ -2,7 +2,7 @@
 
 **Effective date:** 18 August 2026
 
-NTP Groups is a New Tab browser extension for organizing favorite websites into groups. This policy explains what information the extension handles and what happens to it.
+NTP Groups is a New Tab extension for Microsoft Edge and other compatible Chromium-based browsers. It organizes favorite websites into groups. This policy explains what information the extension handles and what happens to it.
 
 ## Information handled by NTP Groups
 
@@ -52,10 +52,14 @@ NTP Groups contains its application logic inside the extension package and does 
 
 Users can edit or delete individual saved sites and groups from the extension. Users can also reset the extension's saved layout from its settings. Removing the extension removes its extension-local storage according to browser behavior.
 
-## Chrome Web Store Limited Use
+## Purpose limitation
 
-The use of information handled by NTP Groups is limited to providing or improving the extension's single user-facing purpose. NTP Groups does not transfer user information for personalized advertising or unrelated purposes.
+The use of information handled by NTP Groups is limited to providing the extension's single user-facing purpose: a grouped New Tab launcher with browser-default search. NTP Groups does not transfer user information for personalized advertising or unrelated purposes.
 
 ## Contact
 
-Support requests can be submitted through the NTP Groups support section in the Chrome Web Store listing. NTP Groups does not require a separate public support email in this privacy policy.
+Support requests can be submitted through the public NTP Groups GitHub Issues page:
+
+https://github.com/FreNzy1000/ntp-groups/issues
+
+NTP Groups does not require a separate public support email in this privacy policy.

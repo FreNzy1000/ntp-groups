@@ -6,6 +6,39 @@
 
 The package is byte-identical to the verified Chromium 0.1.11 release and contains no `update_url` field.
 
+## Current Partner Center submission defaults
+
+### Packages
+
+Upload: `D:\dev\NTP-Groups\dist\edge\NTP-Groups-0.1.11-edge.zip`
+
+### Availability
+
+- Visibility: **Public**.
+- Markets: **All markets** (default), unless a later legal/localization reason requires narrowing distribution.
+
+### Properties
+
+- Category: **Productivity**.
+- Website: optional; leave blank for the first submission unless a dedicated product landing page is added.
+- Support contact: `https://github.com/FreNzy1000/ntp-groups/issues`.
+- Mature content: **No**.
+
+### Privacy
+
+- Single Purpose: use the text in the **Single purpose** section below.
+- Permission justification: use the `storage`, `search`, and `favicon` explanations below.
+- Remote code: **No, I am not using remote code**.
+- Personal information / privacy requirement: answer conservatively that the extension **accesses/handles user-provided URLs and search text**, even though saved layout data is local and nothing is transmitted to the developer. Use the published privacy policy URL.
+- Data usage categories: select only categories that actually correspond to the form's current labels for saved URLs/browsing activity and search text; do not claim that the extension handles no user information.
+- Privacy policy: `https://frenzy1000.github.io/ntp-groups/store/privacy/`.
+
+### Store listing
+
+- Primary listing language for the first submission: **English**.
+- Search terms: `new tab`, `shortcuts`, `folders`, `favorites`, `launcher`, `productivity`.
+- Use the logo, four screenshots, and promotional tiles listed in **Assets** below.
+
 ## Category
 
 Productivity
