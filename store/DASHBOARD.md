@@ -45,7 +45,9 @@ No.
 No.
 
 ### Privacy policy
-Host `PRIVACY_POLICY.md` at a stable public HTTPS URL before submission and paste that URL into the Privacy Policy field.
+Use the published GitHub Pages URL in the Privacy Policy field:
+
+`https://frenzy1000.github.io/ntp-groups/store/privacy/`
 
 ## Test instructions
 
@@ -83,7 +85,7 @@ Optional, not required for the first submission:
 
 **Current extension version:** `0.1.10`
 
-- Publish `store/privacy/index.html` at a stable public HTTPS URL and paste that URL into the Privacy Policy field.
+- Privacy Policy is published and verified at `https://frenzy1000.github.io/ntp-groups/store/privacy/`.
 - Enable the Chrome Web Store built-in Support hub for user support, or provide a dedicated Support URL later if desired.
 - Ensure the Store listing screenshots show the current NTP Groups branding and current UI.
 - Re-test on Chrome after packaging.
