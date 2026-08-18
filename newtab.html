@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>New Tab</title>
+  <link rel="icon" type="image/svg+xml" href="icons/tab-scratches.svg">
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+  <main class="ntp-shell">
+    <section class="launcher" aria-label="Быстрый доступ">
+      <div id="launcherView" class="launcher-view"></div>
+
+      <form id="searchForm" class="search-box" autocomplete="off" role="search">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m20 20-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"/></svg>
+        <input id="searchInput" type="search" spellcheck="false" autocomplete="off" placeholder="Спросите о чем угодно, найдите что угодно…" aria-label="Поиск">
+      </form>
+    </section>
+  </main>
+
+  <div id="settingsHotzone" class="settings-hotzone">
+    <button id="settingsButton" class="settings-button" type="button" aria-label="Настройки" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10m4 0h2M4 17h2m4 0h10M14 4v6M6 14v6"/></svg>
+    </button>
+  </div>
+
+  <div id="contextMenu" class="context-menu" hidden></div>
+
+  <div id="modalBackdrop" class="modal-backdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="modal-header">
+        <h2 id="modalTitle">Добавить сайт</h2>
+        <button id="modalClose" class="icon-button" type="button" aria-label="Закрыть">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg>
+        </button>
+      </header>
+      <form id="editorForm" class="editor-form">
+        <div id="kindRow" class="field-row">
+          <span id="kindLabel">Тип</span>
+          <select id="editorKind" hidden aria-hidden="true" tabindex="-1">
+            <option value="site">Сайт</option>
+            <option value="folder">Группа</option>
+          </select>
+          <div id="kindSelect" class="location-select kind-select">
+            <button id="kindButton" class="location-select-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="kindLabel kindValue">
+              <span id="kindValue">Сайт</span>
+              <svg class="location-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
+            </button>
+            <div id="kindMenu" class="location-select-menu" role="listbox" hidden></div>
+          </div>
+        </div>
+        <label class="field-row">
+          <span>Название</span>
+          <input id="editorTitle" maxlength="28" required>
+        </label>
+        <label id="urlRow" class="field-row">
+          <span>URL</span>
+          <input id="editorUrl" type="url" placeholder="https://example.com/">
+        </label>
+        <div id="locationRow" class="field-row">
+          <span id="locationLabel">Расположение</span>
+          <div id="locationSelect" class="location-select">
+            <button id="locationButton" class="location-select-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="locationLabel locationValue">
+              <span id="locationValue"></span>
+              <svg class="location-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
+            </button>
+            <div id="locationMenu" class="location-select-menu" role="listbox" hidden></div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="editorCancel" class="button secondary" type="button">Отмена</button>
+          <button class="button primary" type="submit">Сохранить</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div id="settingsPopover" class="settings-popover" hidden>
+    <div class="settings-title">NTP Groups</div>
+    <label class="settings-toggle">
+      <input id="settingsButtonAlwaysVisible" type="checkbox" checked>
+      <span>Показывать значок настроек постоянно</span>
+    </label>
+    <button id="resetLayout" type="button">Вернуть исходную структуру</button>
+    <div class="settings-note">Если значок скрыт, наведите курсор в правый нижний угол. Данные хранятся локально в расширении.</div>
+  </div>
+
+  <script src="newtab.js"></script>
+</body>
+</html>

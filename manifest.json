@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "NTP Groups",
+  "version": "0.1.10",
+  "description": "Grouped favorites and folders for a clean New Tab page.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["storage", "search", "favicon"],
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  }
+}
