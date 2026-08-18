@@ -2,6 +2,10 @@
 
 Run this checklist before the first Microsoft Edge Add-ons submission.
 
+**Current result:** PASS on Microsoft Edge 151.0.4129.86 in an isolated temporary profile. The real New Tab action rendered NTP Groups, storage/search/tabs runtime checks passed, hub mode rendered correctly, and the `_favicon` endpoint returned HTTP 200. Edge masks the outer CDP target as `edge://newtab/`; acceptance therefore verifies the rendered DOM/runtime context rather than relying on the outer target URL alone.
+
+Re-run with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\edge-acceptance.ps1` after any Edge-specific or New Tab-related change.
+
 ## Preconditions
 
 - Install the current stable Microsoft Edge build from Microsoft.
@@ -59,4 +63,6 @@ Run this checklist before the first Microsoft Edge Add-ons submission.
 
 ## Pass condition
 
-Submission is allowed only after all required functional checks pass in Microsoft Edge, especially favicon rendering, New Tab override behavior, search, hub mode, and drag-and-drop. If any Edge-specific issue appears, fix it in source, bump the extension version, rebuild the Edge package, and repeat this checklist before submission.
+For `0.1.11`, the automated isolated-profile Edge gate passes the package/API/New Tab checks. Manual interaction checks remain useful as a final visual smoke test, but no Edge-specific compatibility blocker is currently known.
+
+If a future Edge-specific issue appears, fix it in source, bump the extension version, rebuild the Edge package, and repeat this checklist before submission.

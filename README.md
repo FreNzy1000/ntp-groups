@@ -24,7 +24,7 @@ Bonjourr is stored separately under `D:\dev\References\Bonjourr` and is GPL-3.0.
 ## Distribution
 
 - **Brave / Chromium development install:** use the unpacked extension from this repository or the verified ZIP from GitHub Releases.
-- **Microsoft Edge Add-ons:** submission assets and package are prepared under `store/` and `dist/edge/`; Edge-specific sideload acceptance must pass before store submission.
+- **Microsoft Edge Add-ons:** submission assets and package are prepared under `store/` and `dist/edge/`; isolated-profile sideload acceptance passed on Microsoft Edge 151.0.4129.86, including the New Tab override, storage/search/tabs APIs, hub mode, and favicon rendering.
 - **Chrome Web Store:** not currently published.
 
 ## Load unpacked in Brave

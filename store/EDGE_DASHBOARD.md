@@ -65,12 +65,17 @@ No account, login, paid service, or test credentials are required. Open a new ta
 
 ## Compatibility / validation status
 
-Confirmed from Microsoft Edge extension documentation:
+Edge-specific sideload acceptance **passed** on Microsoft Edge 151.0.4129.86 using an isolated temporary profile and the real **Load unpacked** flow.
 
-- Manifest V3 is supported.
-- `chrome.search`, `chrome.storage`, and `chrome.tabs` are supported on Windows.
+Verified:
+
+- Manifest V3 package loads as `UNPACKED` and `ENABLED` with no manifest/runtime errors.
+- A real Edge New Tab action renders the NTP Groups extension context. Edge exposes the outer CDP target as `edge://newtab/`, while the rendered DOM reports the extension URL `chrome-extension://klabdepdolneccohgddjjacheopijapj/newtab.html`.
+- `chrome.storage.local` read/write/remove round-trip passes.
+- `chrome.search.query` is available.
+- `chrome.tabs.create` and tab removal pass without adding the `tabs` permission.
+- The Chromium `_favicon` endpoint used by NTP Groups responds successfully in Edge (`HTTP 200`).
+- NTP Groups UI renders with root sites/groups, Settings, and hub mode enabled by default.
 - The package contains no `update_url` field.
 
-The Chromium release has been tested in Brave. Microsoft Edge is not currently installed on this development PC, so Edge-specific sideload acceptance remains pending and must be completed before final submission.
-
-**Acceptance gate:** verify the `favicon` permission / `_favicon` URL behavior in Microsoft Edge before submitting. Microsoft's supported-API table documents `search`, `storage`, and `tabs`, but does not explicitly document the Chrome `favicon` permission endpoint used by NTP Groups. If favicon previews fail, do not submit the current package until an Edge-safe favicon path is implemented and re-tested.
+The verified Edge package is byte-identical to the Chromium 0.1.11 release.
