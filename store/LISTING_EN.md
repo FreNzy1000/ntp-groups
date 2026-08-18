@@ -17,6 +17,7 @@ Key features:
 - Preview grouped sites directly from the New Tab page.
 - Drag and reorder shortcuts.
 - Move sites between the root and groups.
+- Use hub mode to open sites in a new active tab while keeping NTP Groups open; the mode is enabled by default and can be disabled in Settings.
 - Use your browser's current default search provider through the official browser search API.
 - Store shortcut titles, URLs, layout, and preferences locally in extension storage.
 - No ads, analytics, trackers, remote scripts, or developer-operated backend.

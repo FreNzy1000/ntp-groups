@@ -7,7 +7,8 @@
   const DEFAULT_CONFIG = {
     version: SCHEMA_VERSION,
     preferences: {
-      settingsButtonAlwaysVisible: true
+      settingsButtonAlwaysVisible: true,
+      openSitesInNewTab: true
     },
     root: [
       { kind: 'site', id: 'youtube', title: 'YouTube', url: 'https://www.youtube.com/' },
@@ -75,6 +76,7 @@
   const settingsButton = document.getElementById('settingsButton');
   const settingsPopover = document.getElementById('settingsPopover');
   const settingsButtonAlwaysVisible = document.getElementById('settingsButtonAlwaysVisible');
+  const openSitesInNewTab = document.getElementById('openSitesInNewTab');
   const resetLayout = document.getElementById('resetLayout');
 
   let config = structuredClone(DEFAULT_CONFIG);
@@ -200,10 +202,14 @@
   function openSite(site, newTab = false) {
     if (!site?.url) return;
     if (newTab) {
-      window.open(site.url, '_blank', 'noopener');
-    } else {
-      location.href = site.url;
+      if (globalThis.chrome?.tabs?.create) {
+        chrome.tabs.create({ url: site.url, active: true });
+      } else {
+        window.open(site.url, '_blank', 'noopener');
+      }
+      return;
     }
+    location.href = site.url;
   }
 
   function createFavicon(url, title, className = '') {
@@ -249,7 +255,8 @@
     button.append(icon, label);
     button.addEventListener('click', event => {
       if (dragState) return;
-      openSite(site, event.ctrlKey || event.metaKey || event.button === 1);
+      const openInNewTab = event.ctrlKey || event.metaKey || config.preferences?.openSitesInNewTab !== false;
+      openSite(site, openInNewTab);
     });
     button.addEventListener('auxclick', event => {
       if (event.button === 1) {
@@ -1017,6 +1024,7 @@
     const alwaysVisible = config.preferences?.settingsButtonAlwaysVisible !== false;
     document.body.classList.toggle('settings-on-hover', !alwaysVisible);
     settingsButtonAlwaysVisible.checked = alwaysVisible;
+    openSitesInNewTab.checked = config.preferences?.openSitesInNewTab !== false;
   }
 
   function setSettingsPopover(open) {
@@ -1032,6 +1040,11 @@
   settingsButtonAlwaysVisible.addEventListener('change', async () => {
     config.preferences.settingsButtonAlwaysVisible = settingsButtonAlwaysVisible.checked;
     applyPreferences();
+    await storageSet(config);
+  });
+
+  openSitesInNewTab.addEventListener('change', async () => {
+    config.preferences.openSitesInNewTab = openSitesInNewTab.checked;
     await storageSet(config);
   });
 

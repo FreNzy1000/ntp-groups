@@ -60,8 +60,9 @@ Use the published GitHub Pages URL in the Privacy Policy field:
 7. Drag a shortcut outside an open group and confirm it returns to the root.
 8. Drag one root site onto the center of another, hold briefly until the grouping highlight appears, then drop to create a new group.
 9. Click outside an open group and confirm the group closes.
-10. Use the search field and confirm results open through the browser's configured default search provider.
-11. Open settings and reset the layout if needed.
+10. With "Открывать сайты в новой вкладке" enabled, click a site and confirm it opens in a new active tab while the NTP Groups tab remains open. Disable the setting and confirm a normal site click navigates the current tab instead.
+11. Use the search field and confirm results open through the browser's configured default search provider.
+12. Open settings and reset the layout if needed.
 
 No credentials or test account are required.
 
@@ -83,7 +84,7 @@ Optional, not required for the first submission:
 
 ## Final pre-submit checks
 
-**Current extension version:** `0.1.10`
+**Current extension version:** `0.1.11`
 
 - Privacy Policy is published and verified at `https://frenzy1000.github.io/ntp-groups/store/privacy/`.
 - Enable the Chrome Web Store built-in Support hub for user support, or provide a dedicated Support URL later if desired.

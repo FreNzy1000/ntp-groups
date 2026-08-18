@@ -9,6 +9,7 @@ A minimal Manifest V3 New Tab override that adds folders/groups for favorite sit
 - Folder tiles preview the first four favicons.
 - Folder opening is an in-place transition, not navigation to a separate dashboard.
 - Folder titles are editable inline without opening a separate rename dialog.
+- Optional hub mode opens sites in a new active tab while keeping the NTP page open; it is enabled by default and can be disabled in Settings.
 - Root sites and groups can be reordered with edge drop-zones. Dragging a root item beyond the left or right edge moves it to the first or last position. Dragging above or below the launcher row snaps the item to the nearest logical insertion position based on its horizontal pointer position; on wrapped layouts, upward drops target the top row and downward drops target the bottom row. Inside an open group, free-space dragging snaps to the nearest in-group slot while the pointer remains inside the group panel; crossing the panel boundary moves the site back to the root. A deliberate center-hover moves a root site into an existing group or creates a new group from two root sites.
 - The 16px/32px manifest icons use a scratch-only mark for tiny tab/favicon contexts; the 48px/128px assets keep the full four-tile logo for extension management and store presentation.
 - No framework, no build step, no remote scripts.
@@ -25,6 +26,6 @@ Bonjourr is stored separately under `D:\dev\References\Bonjourr` and is GPL-3.0.
 1. Open `brave://extensions`.
 2. Enable Developer mode.
 3. Choose **Load unpacked**.
-4. Select `D:\dev\BraveNTP`.
+4. Select `D:\dev\NTP-Groups`.
 
 If another extension currently overrides New Tab, disable it before accepting this one as the active New Tab provider.
