@@ -21,7 +21,13 @@ A minimal Manifest V3 New Tab override that adds folders/groups for favorite sit
 
 Bonjourr is stored separately under `D:\dev\References\Bonjourr` and is GPL-3.0. This project does not copy Bonjourr source. Bonjourr was used only as a behavioral reference for state separation and transition ideas around link groups/folders.
 
-## Load unpacked
+## Distribution
+
+- **Brave / Chromium development install:** use the unpacked extension from this repository or the verified ZIP from GitHub Releases.
+- **Microsoft Edge Add-ons:** submission assets and package are prepared under `store/` and `dist/edge/`; Edge-specific sideload acceptance must pass before store submission.
+- **Chrome Web Store:** not currently published.
+
+## Load unpacked in Brave
 
 1. Open `brave://extensions`.
 2. Enable Developer mode.
